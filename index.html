@@ -525,6 +525,26 @@
           </button>
         </div>
 
+        <!-- Selector de Abas (Câmera Real-time vs Upload de Arquivo) -->
+        <div class="flex border-b border-slate-800 bg-slate-900/50">
+          <button
+            id="scanner-tab-camera"
+            type="button"
+            onclick="switchScannerTab('camera')"
+            class="flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-[#b39ddb] border-b-2 border-[#7986cb] transition-all flex items-center justify-center gap-2"
+          >
+            <i data-lucide="camera" class="w-4 h-4"></i> Câmera ao Vivo
+          </button>
+          <button
+            id="scanner-tab-upload"
+            type="button"
+            onclick="switchScannerTab('upload')"
+            class="flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2"
+          >
+            <i data-lucide="image" class="w-4 h-4"></i> Escolher da Galeria
+          </button>
+        </div>
+
         <!-- Camera Area / File Upload Area -->
         <div class="flex-1 relative bg-black flex flex-col justify-center items-center min-h-[50vh] max-h-[70vh]">
           
@@ -573,15 +593,45 @@
             </div>
           </div>
 
-          <!-- Upload Fallback Container -->
-          <div id="upload-fallback-container" class="p-8 text-center flex flex-col items-center max-w-sm">
+          <!-- Upload Fallback Container (when camera permissions fail) -->
+          <div id="upload-fallback-container" class="p-8 text-center flex flex-col items-center max-w-sm hidden">
             <div class="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center text-slate-400 mb-4 border border-slate-700 shadow-inner">
-              <i data-lucide="camera" class="w-8 h-8"></i>
+              <i data-lucide="camera-off" class="w-8 h-8"></i>
             </div>
-            <h3 class="font-bold text-lg text-slate-200 mb-1">Permissão da Câmera</h3>
+            <h3 class="font-bold text-lg text-slate-200 mb-1">Câmera Indisponível</h3>
             <p class="text-slate-400 text-sm mb-6 leading-relaxed">
-              Tire uma foto na hora com o celular ou escolha uma imagem salva de sua prateleira para que nossa IA analise.
+              Não conseguimos acessar sua câmera em tempo real. Sem problemas! Você pode escolher uma imagem salva de sua prateleira para analisar.
             </p>
+            <button
+              type="button"
+              onclick="switchScannerTab('upload')"
+              class="px-5 py-2.5 bg-[#7986cb] hover:bg-[#7986cb]/90 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-[#7986cb]/20"
+            >
+              Escolher da Galeria
+            </button>
+          </div>
+
+          <!-- Elegant and Visible File Upload Tab Container -->
+          <div id="scanner-upload-container" class="p-8 text-center flex flex-col items-center justify-center w-full h-full min-h-[50vh] bg-slate-900 hidden">
+            <div class="w-16 h-16 rounded-3xl bg-[#7986cb]/10 border border-[#7986cb]/30 flex items-center justify-center text-[#b39ddb] mb-4 shadow-inner">
+              <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+            </div>
+            <h3 class="font-bold text-lg text-slate-200 mb-2">Selecione uma imagem da sua estante</h3>
+            <p class="text-slate-400 text-xs mb-6 max-w-xs leading-relaxed">
+              Envie uma foto clara das lombadas dos livros de sua biblioteca. A IA fará a identificação instantânea do acervo.
+            </p>
+            
+            <!-- Visible, Elegant File Input Container -->
+            <div class="w-full max-w-sm p-4 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 hover:border-slate-500 transition-all flex flex-col items-center gap-2">
+              <input
+                id="scanner-file-input"
+                type="file"
+                accept="image/*"
+                onchange="handleFileInputChange(event)"
+                class="block w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#7986cb] file:text-white hover:file:bg-[#7986cb]/90 file:cursor-pointer cursor-pointer border border-slate-800 rounded-xl p-2 bg-slate-900/50 hover:border-slate-700 transition-colors"
+              />
+              <p class="text-[10px] text-slate-500">Aceita arquivos JPG, JPEG, PNG ou WEBP</p>
+            </div>
           </div>
 
         </div>
@@ -591,6 +641,7 @@
           <div class="flex gap-3 justify-center items-center w-full">
             <button
               id="btn-capture-frame"
+              type="button"
               onclick="captureCameraImage()"
               class="flex-1 py-3.5 bg-[#7986cb] hover:bg-[#7986cb]/90 text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:shadow-[#7986cb]/20 flex items-center justify-center gap-2 hidden"
             >
@@ -599,6 +650,7 @@
 
             <button
               id="btn-file-trigger"
+              type="button"
               onclick="triggerFileInput()"
               class="w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
             >
@@ -607,11 +659,11 @@
             </button>
           </div>
 
+          <!-- Hidden alternative file input for programmatic triggering of the footer button -->
           <input
             id="hidden-file-input"
             type="file"
             accept="image/*"
-            capture="environment"
             onchange="handleFileInputChange(event)"
             class="hidden"
           />
@@ -929,7 +981,7 @@
             `;
           }
 
-          // Status Badge Markup
+          // Status Badge Badge Markup
           let statusBadge = "";
           if (book.status === "Lendo") {
             statusBadge = `
@@ -1371,7 +1423,8 @@
         document.getElementById("scanner-error-banner").classList.add("hidden");
         document.getElementById("scanning-overlay").classList.add("hidden");
 
-        await startCameraStream();
+        // Open camera tab by default on open
+        window.switchScannerTab("camera");
       };
 
       window.closeScannerModal = function() {
@@ -1379,6 +1432,46 @@
         const modal = document.getElementById("scanner-modal");
         modal.classList.add("hidden");
         modal.classList.remove("flex");
+      };
+
+      window.switchScannerTab = function(tabName) {
+        const tabCameraBtn = document.getElementById("scanner-tab-camera");
+        const tabUploadBtn = document.getElementById("scanner-tab-upload");
+        const cameraStreamContainer = document.getElementById("camera-stream-container");
+        const uploadFallback = document.getElementById("upload-fallback-container");
+        const uploadContainer = document.getElementById("scanner-upload-container");
+        const btnCapture = document.getElementById("btn-capture-frame");
+        const btnFileTrigger = document.getElementById("btn-file-trigger");
+
+        if (tabName === "camera") {
+          // Select camera tab
+          if (tabCameraBtn) tabCameraBtn.className = "flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-[#b39ddb] border-b-2 border-[#7986cb] transition-all flex items-center justify-center gap-2";
+          if (tabUploadBtn) tabUploadBtn.className = "flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2";
+          
+          if (uploadContainer) uploadContainer.classList.add("hidden");
+          startCameraStream();
+        } else {
+          // Select upload tab
+          if (tabCameraBtn) tabCameraBtn.className = "flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2";
+          if (tabUploadBtn) tabUploadBtn.className = "flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-[#b39ddb] border-b-2 border-[#7986cb] transition-all flex items-center justify-center gap-2";
+          
+          stopCameraStream();
+          if (cameraStreamContainer) cameraStreamContainer.classList.add("hidden");
+          if (uploadFallback) uploadFallback.classList.add("hidden");
+          if (btnCapture) btnCapture.classList.add("hidden");
+          if (uploadContainer) uploadContainer.classList.remove("hidden");
+          
+          // Format footer file trigger button in Upload Tab to be full width
+          if (btnFileTrigger) {
+            btnFileTrigger.className = "w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+            const fileTriggerText = document.getElementById("btn-file-trigger-text");
+            if (fileTriggerText) fileTriggerText.innerText = "Escolher da Galeria";
+          }
+        }
+        
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
       };
 
       async function startCameraStream() {
@@ -1406,8 +1499,12 @@
           uploadFallback.classList.add("hidden");
           btnCapture.classList.remove("hidden");
           
-          btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
-          fileTriggerText.innerText = "Enviar Foto";
+          if (btnFileTrigger) {
+            btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+          }
+          if (fileTriggerText) {
+            fileTriggerText.innerText = "Escolher Imagem";
+          }
         } catch (err) {
           console.warn("Environmental camera failed, trying default standard constraints...", err);
           try {
@@ -1419,16 +1516,24 @@
             uploadFallback.classList.add("hidden");
             btnCapture.classList.remove("hidden");
             
-            btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
-            fileTriggerText.innerText = "Enviar Foto";
+            if (btnFileTrigger) {
+              btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+            }
+            if (fileTriggerText) {
+              fileTriggerText.innerText = "Escolher Imagem";
+            }
           } catch (fallbackErr) {
             console.error("Camera access denied or unavailable:", fallbackErr);
             streamContainer.classList.add("hidden");
             uploadFallback.classList.remove("hidden");
             btnCapture.classList.add("hidden");
             
-            btnFileTrigger.className = "w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
-            fileTriggerText.innerText = "Tirar Foto ou Escolher Imagem";
+            if (btnFileTrigger) {
+              btnFileTrigger.className = "w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+            }
+            if (fileTriggerText) {
+              fileTriggerText.innerText = "Escolher da Galeria";
+            }
           }
         }
       }
@@ -1448,7 +1553,8 @@
       };
 
       window.triggerFileInput = function() {
-        document.getElementById("hidden-file-input").click();
+        const fileInput = document.getElementById("scanner-file-input") || document.getElementById("hidden-file-input");
+        if (fileInput) fileInput.click();
       };
 
       window.handleFileInputChange = function(event) {
@@ -1519,21 +1625,35 @@
 
           clearInterval(interval);
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Não foi possível processar as lombadas.");
+          // Check if response status is different from 200
+          if (response.status !== 200) {
+            throw new Error("Erro na comunicação com a IA. Verifique se a sua GEMINI_API_KEY está configurada nas variáveis de ambiente da Vercel.");
           }
 
-          const data = await response.json();
-          if (data.books && data.books.length > 0) {
+          let data;
+          try {
+            data = await response.json();
+          } catch (jsonErr) {
+            // Check if response is a valid JSON
+            throw new Error("Erro na comunicação com a IA. Verifique se a sua GEMINI_API_KEY está configurada nas variáveis de ambiente da Vercel.");
+          }
+
+          if (data && data.books && data.books.length > 0) {
             // Populate and enter Review Mode
             handleScannedBooksResponse(data.books);
+          } else if (data && data.error) {
+            throw new Error(data.error);
           } else {
             throw new Error("Nenhum livro identificado de forma clara. Tente focar mais nas lombadas.");
           }
         } catch (err) {
           console.error(err);
-          showScannerError(err.message || "Falha ao conectar com o servidor da IA.");
+          let friendlyMsg = err.message;
+          // Capture other typical fetch errors/failures and translate gracefully
+          if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError") || err.message.includes("Unexpected token")) {
+            friendlyMsg = "Erro na comunicação com a IA. Verifique se a sua GEMINI_API_KEY está configurada nas variáveis de ambiente da Vercel.";
+          }
+          showScannerError(friendlyMsg);
         } finally {
           clearInterval(interval);
           overlay.classList.add("hidden");
