@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 
-// Inicializa o Firebase usando as variáveis de ambiente da Vercel
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: `${process.env.FIREBASE_PROJECT_ID}.firebaseapp.com`,
@@ -12,8 +11,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Aumenta a tolerância de processamento da Vercel para imagens grandes
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req, res) {
-  // Garante que só aceitamos requisições do tipo POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
@@ -25,81 +32,56 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Nenhuma imagem foi enviada.' });
     }
 
-    // Remove metadados do base64 se existirem
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
 
-    const prompt = `Analise detalhadamente a imagem desta prateleira ou capa de livro. 
-    Identifique os livros visíveis. Para cada livro que você encontrar, pesquise os metadados corretos na internet.
-    Retorne OBRIGATORIAMENTE apenas um array de objetos JSON válidos, sem formatações Markdown adicionais, seguindo exatamente este modelo:
-    [
-      {
-        "titulo": "Nome do Livro",
-        "autor": "Nome do Autor",
-        "synopsis": "Breve resumo do livro encontrado na internet",
-        "genero": "Ficção, Romance, Biografia, etc",
-        "numeroPaginas": 350
-      }
-    ]`;
+    const promptText = "Analise a imagem deste livro. Identifique o título, autor, gênero e uma breve sinopse. Retorne OBRIGATORIAMENTE apenas um array contendo um objeto JSON seguindo exatamente este modelo, sem markdown ou caracteres extras: [{\"titulo\": \"Nome\", \"autor\": \"Autor\", \"synopsis\": \"Resumo\", \"genero\": \"Ficção\", \"numeroPaginas\": 200}]";
 
-    // Chamada universal e direta da API do Gemini sem depender de travas do SDK rígido
     const apiKey = process.env.GEMINI_API_KEY;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Data
-              }
-            }
+            { text: promptText },
+            { inlineData: { mimeType: "image/jpeg", data: base64Data } }
           ]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
+        }]
       })
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Erro na resposta do Gemini:", errorText);
-      return res.status(500).json({ error: 'Erro na comunicação direta com o Gemini.' });
+      const errLog = await response.text();
+      console.error("Erro na API Gemini:", errLog);
+      return res.status(500).json({ error: 'Falha na comunicação com a IA.' });
     }
 
     const data = await response.json();
-    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!responseText) {
-      return res.status(500).json({ error: 'O Gemini não retornou um texto legível.' });
+      return res.status(500).json({ error: 'Resposta nula da IA.' });
     }
 
-    // Converte a string JSON retornada pelo Gemini em Objeto JavaScript
-    const booksDetected = JSON.parse(responseText.trim());
-
-    // Se tudo estiver certo, salva os livros automaticamente no Firestore da Lu
-    const addedBooks = [];
-    const booksCollection = collection(db, 'books');
-
-    // Se veio como objeto único, transforma em array
+    // Garante a extração limpa do formato JSON independente da resposta
+    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    const booksDetected = JSON.parse(responseText);
     const booksArray = Array.isArray(booksDetected) ? booksDetected : [booksDetected];
+    const booksCollection = collection(db, 'books');
+    const addedBooks = [];
 
     for (const book of booksArray) {
       const docRef = await addDoc(booksCollection, {
         title: book.titulo || 'Título Desconhecido',
         author: book.autor || 'Autor Desconhecido',
         synopsis: book.synopsis || '',
-        genre: book.genero || 'Não classificado',
+        genre: book.genero || 'Geral',
         pages: book.numeroPaginas ? Number(book.numeroPaginas) : 0,
-        status: 'Quero Ler', // Padrão inicial
-        coverUrl: '', // O front-end cuidará de buscar a capa via API pública usando o título depois
+        status: 'Quero Ler',
+        coverUrl: '',
         createdAt: new Date().toISOString()
       });
       addedBooks.push({ id: docRef.id, ...book });
@@ -108,7 +90,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, books: addedBooks });
 
   } catch (error) {
-    console.error('Erro interno na API de scan:', error);
-    return res.status(500).json({ error: 'Falha interna ao processar a imagem.' });
+    console.error('Erro geral no Handler:', error);
+    return res.status(500).json({ error: 'Erro ao processar imagem.' });
   }
 }
