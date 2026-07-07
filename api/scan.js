@@ -11,7 +11,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Aumenta a tolerância de processamento da Vercel para imagens grandes
 export const config = {
   api: {
     bodyParser: {
@@ -32,9 +31,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Nenhuma imagem foi enviada.' });
     }
 
+    // Identifica dinamicamente o tipo da imagem (jpeg, png, webp)
+    let mimeType = "image/jpeg";
+    const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+    if (mimeMatch) {
+      mimeType = mimeMatch[1];
+    }
+
+    // Limpa o cabeçalho base64 de forma segura
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
 
-    const promptText = "Analise a imagem deste livro. Identifique o título, autor, gênero e uma breve sinopse. Retorne OBRIGATORIAMENTE apenas um array contendo um objeto JSON seguindo exatamente este modelo, sem markdown ou caracteres extras: [{\"titulo\": \"Nome\", \"autor\": \"Autor\", \"synopsis\": \"Resumo\", \"genero\": \"Ficção\", \"numeroPaginas\": 200}]";
+    const promptText = "Analise a imagem deste livro (capa ou lombada). Identifique o título, autor, gênero e uma breve sinopse. Retorne OBRIGATORIAMENTE apenas um array contendo um único objeto JSON seguindo exatamente este modelo, sem textos extras: [{\"titulo\": \"Nome\", \"autor\": \"Autor\", \"synopsis\": \"Resumo\", \"genero\": \"Ficção\", \"numeroPaginas\": 200}]";
 
     const apiKey = process.env.GEMINI_API_KEY;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -46,7 +53,7 @@ export default async function handler(req, res) {
         contents: [{
           parts: [
             { text: promptText },
-            { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+            { inlineData: { mimeType: mimeType, data: base64Data } }
           ]
         }]
       })
@@ -65,7 +72,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Resposta nula da IA.' });
     }
 
-    // Garante a extração limpa do formato JSON independente da resposta
     responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     
     const booksDetected = JSON.parse(responseText);
