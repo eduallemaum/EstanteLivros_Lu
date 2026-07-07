@@ -11,8 +11,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Inicializa a IA do Google com a chave da Vercel
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Inicializa a IA do Google com suporte a chaves do console do Cloud
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY,
+  forceWebSocket: false 
+});
 
 export default async function handler(req, res) {
   // Garante que só aceitamos requisições do tipo POST (envio de dados)
