@@ -1,912 +1,1609 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estante da Lu - Biblioteca Pessoal 🐱</title>
-  
-  <!-- Fontes do Google -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,800;1,400&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            bento: {
-              bg: '#F8FAFC',
-              text: '#0F172A',
-              primary: '#6366F1',
-              purple: '#818CF8',
-              lavender: '#EEF2FF',
-              orange: '#F97316',
-              red: '#EF4444'
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estante da Lu 🐱 - Biblioteca Pessoal</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
+              serif: ["Playfair Display", "ui-serif", "Georgia", "serif"],
+            },
+            colors: {
+              bento: {
+                primary: "#7986cb",
+                purple: "#b39ddb",
+                orange: "#FF9F0A",
+                red: "#FF3B30",
+                bg: "#F4F5F8",
+                text: "#2D3142",
+                lavender: "#EDE7F6",
+                sage: "#a5d6a7",
+                'sage-light': "#e8f5e9",
+              }
             }
-          },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            serif: ['Playfair Display', 'serif'],
           }
         }
       }
-    }
-  </script>
-  <style>
-    /* Estilos extras */
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    @keyframes scan {
-      0%, 100% { top: 5%; }
-      50% { top: 95%; }
-    }
-    .animate-scan { animation: scan 3s ease-in-out infinite; }
-  </style>
-</head>
-<body class="min-h-screen bg-bento-bg text-bento-text font-sans flex flex-col md:flex-row p-4 md:p-8 gap-6">
+    </script>
 
-  <!-- Sidebar Lateral -->
-  <aside class="w-full md:w-64 shrink-0 flex flex-col gap-6 md:py-2">
-    <div class="flex items-center justify-between md:block px-2">
-      <div class="flex items-center gap-2.5">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-bento-primary to-bento-purple flex items-center justify-center text-white shadow-lg shadow-bento-primary/25">
-          <i data-lucide="library" class="w-5 h-5"></i>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+      /* Custom styling and scrollbars */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      @keyframes scan {
+        0%, 100% { top: 0%; }
+        50% { top: 100%; }
+      }
+      .animate-scan {
+        animation: scan 2.5s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[#F4F5F8] text-[#2D3142] font-sans selection:bg-[#7986cb]/20 flex flex-col md:flex-row p-4 md:p-8 gap-6">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 shrink-0 flex flex-col gap-6 md:py-2">
+      <div class="flex items-center justify-between md:block px-2">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7986cb] to-[#b39ddb] flex items-center justify-center text-white shadow-lg shadow-[#7986cb]/25">
+            <i data-lucide="library" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-extrabold tracking-tight text-[#7986cb] leading-tight flex items-center gap-1.5">
+              Estante da Lu <span class="text-sm">🐱</span>
+            </h1>
+            <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+              Biblioteca Pessoal
+            </p>
+          </div>
         </div>
+        
+        <!-- Mobile Add Button -->
+        <button
+          onclick="openAddBookModal()"
+          class="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#7986cb] text-white text-xs font-bold shadow-md shadow-[#7986cb]/20"
+        >
+          <i data-lucide="plus" class="w-4 h-4"></i> Adicionar
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex md:flex-col gap-2 bg-white/60 md:bg-transparent p-1.5 md:p-0 rounded-2xl border border-slate-200/50 md:border-none">
+        <button
+          id="nav-btn-Todos"
+          onclick="filterStatus('Todos')"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all bg-white text-[#7986cb] shadow-sm border border-slate-100"
+        >
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+          <span class="hidden sm:inline md:inline">Painel</span>
+        </button>
+        <button
+          id="nav-btn-Lendo"
+          onclick="filterStatus('Lendo')"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700"
+        >
+          <i data-lucide="clock" class="w-4 h-4"></i>
+          <span class="hidden sm:inline md:inline">Lendo</span>
+        </button>
+        <button
+          id="nav-btn-Lido"
+          onclick="filterStatus('Lido')"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700"
+        >
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+          <span class="hidden sm:inline md:inline">Lidos</span>
+        </button>
+      </nav>
+
+      <!-- Reading Goal Widget -->
+      <div class="bg-gradient-to-br from-[#7986cb] to-[#b39ddb] p-6 rounded-3xl text-white shadow-lg shadow-[#7986cb]/10 relative overflow-hidden flex flex-col justify-between min-h-[160px] md:mt-auto">
+        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
         <div>
-          <h1 class="text-xl font-extrabold tracking-tight text-bento-primary leading-tight flex items-center gap-1.5">
-            Estante da Lu <span class="text-sm">🐱</span>
-          </h1>
-          <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Biblioteca Pessoal</p>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider opacity-90">Meta de Leitura</span>
+            <i data-lucide="award" class="w-4 h-4 text-[#FF9F0A]"></i>
+          </div>
+          <div class="flex items-baseline gap-1.5">
+            <span id="goal-current-books" class="text-3xl font-black">0</span>
+            <span class="text-sm opacity-70">de</span>
+            <div class="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-lg">
+              <span id="goal-target" class="text-sm font-bold">24</span>
+              <div class="flex flex-col text-[8px] leading-none">
+                <button onclick="updateReadingGoal(1)" class="hover:text-[#FF9F0A] transition-colors">
+                  <i data-lucide="chevron-up" class="w-2.5 h-2.5"></i>
+                </button>
+                <button onclick="updateReadingGoal(-1)" class="hover:text-[#FF9F0A] transition-colors">
+                  <i data-lucide="chevron-down" class="w-2.5 h-2.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div class="flex justify-between items-center text-xs mb-1 opacity-85">
+            <span id="goal-percentage">0% Concluído</span>
+            <span id="goal-count-label">0/24 livros</span>
+          </div>
+          <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+            <div id="goal-progress-bar" class="bg-[#FF9F0A] h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
         </div>
       </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col gap-6 min-w-0">
       
-      <button onclick="openBookModal()" class="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bento-primary text-white text-xs font-bold shadow-md shadow-bento-primary/20">
-        <i data-lucide="plus" class="w-4 h-4"></i> Adicionar
-      </button>
-    </div>
-
-    <!-- Abas de Navegação -->
-    <nav class="flex md:flex-col gap-2 bg-white/60 md:bg-transparent p-1.5 md:p-0 rounded-2xl border border-slate-200/50 md:border-none">
-      <button onclick="setStatusFilter('Todos')" id="tab-Todos" class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all bg-white text-bento-primary shadow-sm border border-slate-100">
-        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-        <span class="hidden sm:inline md:inline">Painel</span>
-      </button>
-      <button onclick="setStatusFilter('Lendo')" id="tab-Lendo" class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700">
-        <i data-lucide="clock" class="w-4 h-4"></i>
-        <span class="hidden sm:inline md:inline">Lendo</span>
-      </button>
-      <button onclick="setStatusFilter('Lido')" id="tab-Lido" class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700">
-        <i data-lucide="check-circle" class="w-4 h-4"></i>
-        <span class="hidden sm:inline md:inline">Lidos</span>
-      </button>
-    </nav>
-
-    <!-- Meta de Leitura -->
-    <div class="bg-gradient-to-br from-bento-primary to-bento-purple p-6 rounded-3xl text-white shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[160px] md:mt-auto">
-      <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold uppercase tracking-wider opacity-90">Meta de Leitura</span>
-          <i data-lucide="award" class="w-4 h-4 text-bento-orange"></i>
+      <!-- Header & Search -->
+      <header class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-between">
+        <div class="relative flex-1 max-w-xl">
+          <span class="absolute inset-y-0 left-4 flex items-center text-slate-400 pointer-events-none">
+            <i data-lucide="search" class="w-5 h-5"></i>
+          </span>
+          <input
+            id="search-input"
+            type="text"
+            oninput="handleSearch(this.value)"
+            placeholder="Pesquisar por título, autor ou gênero..."
+            class="w-full bg-white border-none rounded-2xl py-3.5 pl-12 pr-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 text-sm placeholder-slate-400 font-medium"
+          />
         </div>
-        <div class="flex items-baseline gap-1.5">
-          <span id="goal-read-count" class="text-3xl font-black">0</span>
-          <span class="text-sm opacity-70">de</span>
-          <div class="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-lg">
-            <span id="goal-target" class="text-sm font-bold">24</span>
-            <div class="flex flex-col text-[8px] leading-none">
-              <button onclick="changeGoal(1)" class="hover:text-bento-orange"><i data-lucide="chevron-up" class="w-2.5 h-2.5"></i></button>
-              <button onclick="changeGoal(-1)" class="hover:text-bento-orange"><i data-lucide="chevron-down" class="w-2.5 h-2.5"></i></button>
-            </div>
+
+        <div class="flex items-center gap-3 justify-end">
+          <button
+            onclick="openAddBookModal()"
+            class="bg-white p-3 rounded-2xl shadow-sm text-slate-500 hover:text-[#7986cb] hover:bg-slate-50 transition-all hidden sm:block"
+            title="Adicionar livro manualmente"
+          >
+            <i data-lucide="plus" class="w-5 h-5"></i>
+          </button>
+          <div class="w-12 h-12 rounded-2xl bg-[#b39ddb] flex items-center justify-center text-white font-extrabold text-lg border-4 border-white shadow-sm" title="Jornalista Luciana 🐱">
+            🐱
           </div>
         </div>
-      </div>
+      </header>
 
-      <div class="mt-4">
-        <div class="flex justify-between items-center text-xs mb-1 opacity-85">
-          <span id="goal-percentage">0% Concluído</span>
-          <span id="goal-text">0/24 livros</span>
-        </div>
-        <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-          <div id="goal-bar" class="bg-bento-orange h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- Área de Conteúdo Principal -->
-  <main class="flex-1 flex flex-col gap-6 min-w-0">
-    <header class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-between">
-      <div class="relative flex-1 max-w-xl">
-        <span class="absolute inset-y-0 left-4 flex items-center text-slate-400">
-          <i data-lucide="search" class="w-5 h-5"></i>
-        </span>
-        <input oninput="searchBooks(this.value)" type="text" placeholder="Pesquisar por título, autor ou gênero..." class="w-full bg-white border-none rounded-2xl py-3.5 pl-12 pr-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-bento-primary/20 text-sm placeholder-slate-400 font-medium">
-      </div>
-
-      <div class="flex items-center gap-3 justify-end">
-        <button onclick="openBookModal()" class="bg-white p-3 rounded-2xl shadow-sm text-slate-500 hover:text-bento-primary hover:bg-slate-50 transition-all hidden sm:block">
-          <i data-lucide="plus" class="w-5 h-5"></i>
-        </button>
-        <div class="w-12 h-12 rounded-2xl bg-bento-purple flex items-center justify-center text-white font-extrabold text-lg border-4 border-white shadow-sm">🐱</div>
-      </div>
-    </header>
-
-    <!-- Painel Bento Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1">
-      <section class="md:col-span-8 md:row-span-4 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col border border-slate-100">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Minha Estante</h2>
-            <p class="text-xs text-slate-400 font-medium">A curadoria literária da jornalista Lu</p>
-          </div>
-
-          <!-- Filtro rápido no topo do card -->
-          <div class="flex gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
-            <button onclick="setStatusFilter('Todos')" id="filter-Todos" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap bg-white text-bento-primary shadow-sm">Todos</button>
-            <button onclick="setStatusFilter('Quero Ler')" id="filter-Quero-Ler" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500">Quero Ler</button>
-            <button onclick="setStatusFilter('Lendo')" id="filter-Lendo" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500">Lendo</button>
-            <button onclick="setStatusFilter('Lido')" id="filter-Lido" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500">Lido</button>
-          </div>
-        </div>
-
-        <!-- Lista de Livros -->
-        <div id="books-list" class="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar flex-1">
-          <!-- Carregado dinamicamente via JS -->
-        </div>
-      </section>
-
-      <!-- Card "Pauta Literária" -->
-      <section class="md:col-span-4 md:row-span-2 bg-bento-primary rounded-[2rem] p-6 shadow-lg text-white flex flex-col justify-between relative overflow-hidden">
-        <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full"></div>
-        <div class="flex items-center gap-4 mb-4">
-          <div class="p-3 bg-white/10 rounded-2xl">
-            <i data-lucide="trending-up" class="w-5 h-5 text-bento-orange"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-sm font-serif">Pauta Literária</h3>
-            <p class="text-[10px] text-white/70">Histórias & Notas da Lu</p>
-          </div>
-        </div>
-
-        <div class="my-2 flex flex-col gap-2 z-10">
-          <p class="text-xs font-serif leading-relaxed text-bento-lavender italic">
-            "Luciana, sua próxima grande história começa na próxima página."
-          </p>
-          <div>
-            <p id="stats-percentage-title" class="text-4xl font-black tracking-tight text-white">+0%</p>
-            <p id="stats-percentage-desc" class="text-xs opacity-80 mt-1 leading-relaxed">Sua curadoria especial de livros está aguardando leituras!</p>
-          </div>
-        </div>
-
-        <div class="text-[11px] opacity-70 border-t border-white/10 pt-3 flex justify-between items-center z-10">
-          <span>Preferência por jornalismo & literatura</span>
-          <span>🐱</span>
-        </div>
-      </section>
-
-      <!-- Distribuição de Status -->
-      <section class="md:col-span-4 md:row-span-2 bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-        <div>
-          <h3 class="font-extrabold text-slate-800 text-sm mb-4 uppercase opacity-80">Distribuição</h3>
-          <div class="space-y-3.5">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div> Lido
-              </span>
-              <span id="dist-lido" class="text-xs font-bold text-slate-700 bg-emerald-500/10 px-2 py-0.5 rounded-md">0</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-bento-primary"></div> Lendo
-              </span>
-              <span id="dist-lendo" class="text-xs font-bold text-slate-700 bg-bento-primary/10 px-2 py-0.5 rounded-md">0</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-indigo-300"></div> Quero Ler
-              </span>
-              <span id="dist-quero" class="text-xs font-bold text-slate-700 bg-indigo-500/10 px-2 py-0.5 rounded-md">0</span>
-            </div>
-          </div>
-        </div>
-        <div id="dist-total" class="text-[10px] text-slate-400 font-medium pt-3 mt-4 border-t border-slate-50">
-          Total de 0 registros no Firestore.
-        </div>
-      </section>
-
-      <!-- Banner de Scanner de IA -->
-      <section class="md:col-span-12 md:row-span-2 bg-bento-lavender rounded-[2rem] p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between relative overflow-hidden border border-indigo-100/30 gap-6">
-        <div class="z-10 text-center sm:text-left">
-          <h2 class="text-xl md:text-2xl font-black text-bento-primary tracking-tight">Nova aquisição física?</h2>
-          <p class="text-bento-primary/70 text-xs md:text-sm mt-1 max-w-md font-medium">
-            Use a câmera inteligente integrada para identificar lombadas e catalogar livros de forma automatizada.
-          </p>
-        </div>
-        <button onclick="openScannerModal()" class="z-10 bg-bento-primary hover:bg-bento-primary/95 text-white px-6 md:px-8 py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-bento-primary/20 flex items-center gap-2.5 active:scale-95 transition-all">
-          <i data-lucide="camera" class="w-4 h-4"></i> Escanear Livro com IA
-        </button>
-        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-bento-primary/10 rounded-full"></div>
-      </section>
-    </div>
-  </main>
-
-  <!-- Botão Flutuante Móvel (Câmera) -->
-  <button onclick="openScannerModal()" class="fixed bottom-6 right-6 md:hidden z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-bento-primary to-bento-purple text-white shadow-xl flex items-center justify-center">
-    <i data-lucide="camera" class="w-6 h-6"></i>
-  </button>
-
-  <!-- MODAL DE CADASTRO / EDIÇÃO -->
-  <div id="book-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-      <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-        <h3 id="book-modal-title" class="font-extrabold text-slate-800 text-lg">Adicionar Livro</h3>
-        <button onclick="closeBookModal()" class="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-      <form id="book-form" onsubmit="saveBook(event)" class="p-6 overflow-y-auto space-y-4">
-        <input type="hidden" id="form-book-id">
+      <!-- Bento Grid Layout -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1">
         
-        <div>
-          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Título</label>
-          <input type="text" id="form-title" required class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 focus:border-bento-primary text-sm font-medium">
-        </div>
+        <!-- Minha Estante Box -->
+        <section class="md:col-span-8 md:row-span-4 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col border border-slate-100">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Minha Estante</h2>
+              <p class="text-xs text-slate-400 font-medium">A curadoria literária da jornalista Lu</p>
+            </div>
 
-        <div>
-          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Autor</label>
-          <input type="text" id="form-author" required class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 focus:border-bento-primary text-sm font-medium">
-        </div>
-
-        <div>
-          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Capa do Livro (URL ou Busca Automática)</label>
-          <div class="flex gap-2">
-            <input type="url" id="form-cover-url" placeholder="Cole o link da imagem da capa" class="flex-1 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 text-sm font-medium">
-            <button type="button" onclick="autoFetchCover()" class="px-4 bg-slate-100 hover:bg-slate-200 border text-slate-700 rounded-xl text-xs font-bold transition-colors">Buscar Capa</button>
+            <!-- Filter Pills inside Shelf -->
+            <div class="flex gap-1.5 bg-slate-100 p-1 rounded-xl self-stretch sm:self-auto overflow-x-auto no-scrollbar">
+              <button onclick="filterStatus('Todos')" id="filter-pill-Todos" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap bg-white text-[#7986cb] shadow-sm">Todos</button>
+              <button onclick="filterStatus('Quero Ler')" id="filter-pill-Quero-Ler" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800">Quero Ler</button>
+              <button onclick="filterStatus('Lendo')" id="filter-pill-Lendo" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800">Lendo</button>
+              <button onclick="filterStatus('Lido')" id="filter-pill-Lido" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800">Lido</button>
+            </div>
           </div>
-          <div id="cover-preview-container" class="mt-2 hidden">
-            <img id="cover-preview-img" src="" class="w-12 h-16 rounded border shadow-sm object-cover">
-          </div>
-        </div>
 
-        <div class="grid grid-cols-2 gap-4">
+          <!-- Books Container -->
+          <div class="flex-1">
+            <div id="loading-shimmer" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+              <div class="h-44 bg-slate-50 rounded-2xl border border-dashed border-slate-200 animate-pulse"></div>
+              <div class="h-44 bg-slate-50 rounded-2xl border border-dashed border-slate-200 animate-pulse"></div>
+            </div>
+
+            <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center p-8 py-16 hidden">
+              <div class="w-16 h-16 rounded-2xl bg-[#EDE7F6] flex items-center justify-center text-[#7986cb] mb-4 relative">
+                <i data-lucide="library" class="w-7 h-7"></i>
+                <span class="absolute -bottom-1 -right-1 bg-white text-xs p-1 rounded-full shadow-sm border border-slate-100">🖨️</span>
+              </div>
+              <h3 class="font-extrabold text-slate-800 text-base">Nenhum livro encontrado</h3>
+              <p id="empty-state-text" class="text-xs text-slate-400 max-w-xs mt-1.5 leading-relaxed">
+                Nenhum livro cadastrado nesta seção. Que tal alimentar a máquina de escrever com novas histórias?
+              </p>
+              <div class="mt-4 text-[10px] text-slate-400 font-serif italic flex items-center gap-1.5">
+                <span>⚘ Lírios & novas pautas da Lu ⚘</span>
+              </div>
+            </div>
+
+            <div id="books-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar">
+              <!-- Rendered Dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Stats Side Card -->
+        <section class="md:col-span-4 md:row-span-2 bg-[#7986cb] rounded-[2rem] p-6 shadow-lg shadow-[#7986cb]/10 text-white flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full pointer-events-none"></div>
+
+          <div class="flex items-center gap-4 mb-4">
+            <div class="p-3 bg-white/10 rounded-2xl">
+              <i data-lucide="trending-up" class="w-5 h-5 text-[#FF9F0A]"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm font-serif">Pauta Literária</h3>
+              <p class="text-[10px] text-white/70">Histórias & Notas da Lu</p>
+            </div>
+          </div>
+
+          <div class="my-2 flex flex-col gap-2">
+            <p class="text-xs font-serif leading-relaxed text-[#EDE7F6] italic">
+              "Luciana, sua próxima grande história começa na próxima página."
+            </p>
+            <div id="stats-dynamic-content">
+              <!-- Rendered Dynamically -->
+            </div>
+          </div>
+
+          <div class="text-[11px] opacity-70 mt-auto border-t border-white/10 pt-3 flex justify-between items-center">
+            <span>Preferência por jornalismo & literatura</span>
+            <span>🐱</span>
+          </div>
+        </section>
+
+        <!-- Status Distribution -->
+        <section class="md:col-span-4 md:row-span-2 bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
           <div>
-            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Gênero</label>
-            <input type="text" id="form-genre" placeholder="Ex: Suspense" class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 text-sm font-medium">
+            <h3 class="font-extrabold text-slate-800 text-sm tracking-tight mb-4 uppercase opacity-80">Distribuição</h3>
+            <div class="space-y-3.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
+                  <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div> Lido
+                </span>
+                <span id="dist-lido" class="text-xs font-bold text-slate-700 bg-emerald-500/10 px-2 py-0.5 rounded-md">0</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
+                  <div class="w-2.5 h-2.5 rounded-full bg-[#7986cb]"></div> Lendo
+                </span>
+                <span id="dist-lendo" class="text-xs font-bold text-slate-700 bg-[#7986cb]/10 px-2 py-0.5 rounded-md">0</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
+                  <div class="w-2.5 h-2.5 rounded-full bg-[#b39ddb]"></div> Quero Ler
+                </span>
+                <span id="dist-quero-ler" class="text-xs font-bold text-slate-700 bg-[#b39ddb]/10 px-2 py-0.5 rounded-md">0</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Páginas</label>
-            <input type="number" id="form-pages" placeholder="Ex: 350" class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 text-sm font-medium">
+
+          <div id="total-firestore-label" class="text-[10px] text-slate-400 font-medium pt-3 mt-4 border-t border-slate-50">
+            Total de 0 registros no Firestore.
           </div>
-        </div>
+        </section>
 
-        <div>
-          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Status de Leitura</label>
-          <select id="form-status" class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 text-sm font-semibold text-slate-700">
-            <option value="Quero Ler">Quero Ler</option>
-            <option value="Lendo">Lendo</option>
-            <option value="Lido">Lido</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Sinopse</label>
-          <textarea id="form-synopsis" rows="3" class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-primary/20 text-sm font-medium"></textarea>
-        </div>
-
-        <div class="pt-4 flex gap-3">
-          <button type="button" onclick="closeBookModal()" class="flex-1 py-3 border text-slate-500 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors">Cancelar</button>
-          <button type="submit" class="flex-1 py-3 bg-bento-primary hover:bg-bento-primary/90 text-white font-bold rounded-xl text-sm shadow-md transition-all">Salvar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL DE SCANNER (WEBCAM E IA) -->
-  <div id="scanner-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 text-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col relative">
-      <!-- Header -->
-      <div class="p-5 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 z-10">
-        <div class="flex items-center gap-2">
-          <i data-lucide="sparkles" class="w-5 h-5 text-bento-purple animate-pulse"></i>
-          <h2 class="font-bold text-lg">Escanear Lombadas</h2>
-        </div>
-        <button onclick="closeScannerModal()" class="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-
-      <!-- Live Loading Overlay -->
-      <div id="scanner-loading" class="absolute inset-0 bg-slate-950/90 z-20 flex flex-col items-center justify-center p-6 text-center hidden">
-        <div class="relative mb-6">
-          <div class="w-16 h-16 rounded-full border-4 border-bento-primary/20 border-t-bento-primary animate-spin"></div>
-          <i data-lucide="sparkles" class="w-6 h-6 text-bento-purple absolute inset-0 m-auto animate-bounce"></i>
-        </div>
-        <h3 class="font-bold text-lg mb-2">Lendo a Estante da Lu</h3>
-        <p id="scan-status" class="text-bento-purple text-sm font-medium animate-pulse">Enviando foto ao Gemini...</p>
-        <p class="text-xs text-slate-500 mt-4 max-w-xs">Analisando a foto para extrair títulos, autores e sinopses. Isso pode levar alguns segundos.</p>
-      </div>
-
-      <!-- Camera / Preview Area -->
-      <div class="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-        <video id="webcam-feed" autoplay playsinline class="w-full h-full object-cover"></video>
-        <canvas id="capture-canvas" class="hidden"></canvas>
-        
-        <div class="absolute inset-0 border-[30px] border-black/40 pointer-events-none flex items-center justify-center">
-          <div class="relative w-full max-w-[280px] h-[160px] border-2 border-bento-primary rounded-2xl shadow-[0_0_15px_rgba(121,134,203,0.3)]">
-            <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-bento-purple rounded-tl-md"></div>
-            <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-bento-purple rounded-tr-md"></div>
-            <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-bento-purple rounded-bl-md"></div>
-            <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-bento-purple rounded-br-md"></div>
-            <div class="absolute left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-bento-purple to-transparent shadow-[0_0_8px_#7986cb] animate-scan"></div>
+        <!-- Intelligent Camera Banner -->
+        <section class="md:col-span-12 md:row-span-2 bg-[#EDE7F6] rounded-[2rem] p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between relative overflow-hidden border border-violet-100/30 gap-6">
+          <div class="z-10 text-center sm:text-left">
+            <h2 class="text-xl md:text-2xl font-black text-[#7986cb] tracking-tight">Nova aquisição física?</h2>
+            <p class="text-[#7986cb]/70 text-xs md:text-sm mt-1 max-w-md font-medium">
+              Use a câmera inteligente integrada para identificar lombadas e catalogar livros na estante de forma totalmente automatizada.
+            </p>
           </div>
-        </div>
-      </div>
-
-      <!-- Ações do Scanner -->
-      <div class="p-6 bg-slate-900/95 flex flex-col gap-4">
-        <div class="flex gap-4">
-          <button onclick="capturePhoto()" class="flex-1 py-3.5 bg-bento-primary hover:bg-bento-primary/90 text-white rounded-xl text-sm font-semibold transition-all shadow-lg flex items-center justify-center gap-2">
-            <i data-lucide="camera" class="w-4 h-4"></i> Tirar Foto
+          
+          <button
+            onclick="openScannerModal()"
+            class="z-10 bg-[#7986cb] hover:bg-[#7986cb]/95 text-white px-6 md:px-8 py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-[#7986cb]/20 flex items-center gap-2.5 active:scale-95 transition-all"
+          >
+            <i data-lucide="camera" class="w-4 h-4"></i>
+            Escanear Livro com IA
           </button>
           
-          <label class="flex-1 py-3.5 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 text-center">
-            <i data-lucide="image" class="w-4 h-4"></i> Carregar Foto
-            <input type="file" accept="image/*" onchange="uploadPhoto(event)" class="hidden">
-          </label>
-        </div>
-        <p class="text-[11px] text-slate-500 text-center">Posicione as lombadas dos livros dentro do quadro central para a leitura ideal da Inteligência Artificial.</p>
-      </div>
-    </div>
-  </div>
+          <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-[#7986cb]/10 rounded-full"></div>
+          <div class="absolute top-5 right-20 w-12 h-12 bg-white/40 rounded-full"></div>
+        </section>
 
-  <!-- DROPDOWN / DRAWER DE REVISÃO IA -->
-  <div id="review-banner" class="fixed bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-80 z-40 bg-gradient-to-r from-bento-orange to-red-500 rounded-2xl p-4 shadow-xl text-white flex items-center justify-between animate-bounce hidden">
-    <div class="flex items-center gap-2.5">
-      <i data-lucide="sparkles" class="w-5 h-5"></i>
-      <div>
-        <p class="text-xs font-black uppercase tracking-wider">Modo Revisão IA</p>
-        <p id="review-status-text" class="text-[10px] opacity-90 font-semibold">Analisando 0 livros</p>
       </div>
-    </div>
-    <button onclick="startAiReview()" class="px-3 py-1.5 rounded-xl bg-white text-orange-600 text-xs font-black shadow-md hover:bg-slate-50 flex items-center gap-1">
-      Revisar <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+    </main>
+
+    <!-- Mobile Sticky Trigger -->
+    <button
+      onclick="openScannerModal()"
+      class="fixed bottom-6 right-6 md:hidden z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-[#7986cb] to-[#b39ddb] text-white shadow-xl shadow-[#7986cb]/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+      title="Escanear com IA"
+    >
+      <i data-lucide="camera" class="w-6 h-6"></i>
     </button>
-  </div>
 
-  <!-- SCRIPTS CDN: Lucide Icons e Firebase Core/Firestore v10 -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { 
-      getFirestore, 
-      collection, 
-      onSnapshot, 
-      addDoc, 
-      updateDoc, 
-      deleteDoc, 
-      doc, 
-      serverTimestamp, 
-      query, 
-      orderBy 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    <!-- AI Review Floating Drawer -->
+    <div id="review-drawer" class="fixed bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-80 z-40 bg-gradient-to-r from-[#FF9F0A] to-[#FF3B30] rounded-2xl p-4 shadow-xl text-white flex items-center justify-between hidden">
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="sparkles" class="w-5 h-5 shrink-0 animate-pulse"></i>
+        <div>
+          <p class="text-xs font-black uppercase tracking-wider">Modo Revisão IA</p>
+          <p id="review-drawer-count" class="text-[10px] opacity-90 font-semibold">Analisando 0 livros</p>
+        </div>
+      </div>
+      <button
+        onclick="openNextReviewBook()"
+        class="px-3 py-1.5 rounded-xl bg-white text-[#FF3B30] text-xs font-black shadow-md hover:bg-slate-50 transition-colors flex items-center gap-1"
+      >
+        Revisar <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
 
-    // Credenciais exclusivas do projeto estantelivros-luciana
-    const firebaseConfig = {
-      projectId: "estantelivros-luciana",
-      appId: "1:997707452550:web:f11d2e83cad236c8870107",
-      apiKey: "AIzaSyAJOs9uMbLfhSWrV2xLh-YXbsSd4B1glrk",
-      authDomain: "estantelivros-luciana.firebaseapp.com",
-      storageBucket: "estantelivros-luciana.firebasestorage.app",
-      messagingSenderId: "997707452550"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app, "ai-studio-estantedalu-d9be5acc-3d19-41a0-ab85-993a300c4a8e");
-
-    // ESTADO DO APLICATIVO
-    let books = [];
-    let filteredList = [];
-    let currentFilter = 'Todos';
-    let searchQuery = '';
-    let readingGoal = parseInt(localStorage.getItem('estante_da_lu_goal') || '24', 10);
-    let reviewQueue = [];
-    let isReviewMode = false;
-
-    // Elementos da Câmera
-    let webcamStream = null;
-
-    // Livros Padrão caso o Firestore esteja vazio
-    const DEFAULT_BOOKS = [
-      {
-        title: 'O Nome da Rosa',
-        author: 'Umberto Eco',
-        genre: 'Mistério/Ficção Histórica',
-        pages: 560,
-        synopsis: 'Na Itália medieval, em um mosteiro franciscano isolado, monges começam a morrer de forma misteriosa. Guilherme de Baskerville e seu noviço Adso tentam decifrar os segredos.',
-        status: 'Lido',
-        coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51rR-Zq-F1L._SX331_BO1,204,203,200_.jpg'
-      },
-      {
-        title: 'Cem Anos de Solidão',
-        author: 'Gabriel García Márquez',
-        genre: 'Realismo Mágico',
-        pages: 448,
-        synopsis: 'A saga multigeracional da família Buendía na fictícia cidade de Macondo.',
-        status: 'Lido',
-        coverImage: 'https://images-na.ssl-images-amazon.com/images/I/817FFN3upTL.jpg'
-      },
-      {
-        title: 'A Garota do Lago',
-        author: 'Charlie Donlea',
-        genre: 'Suspense',
-        pages: 296,
-        synopsis: 'Uma jovem jornalista investigativa tenta desvendar o violento assassinato de uma estudante de medicina.',
-        status: 'Lendo',
-        coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51Iu9m2847L._SX337_BO1,204,203,200_.jpg'
-      },
-      {
-        title: 'Admirável Mundo Novo',
-        author: 'Aldous Huxley',
-        genre: 'Ficção Científica',
-        pages: 312,
-        synopsis: 'Uma visão assustadora e profética de uma sociedade futura altamente controlada, condicionada geneticamente e anestesiada pelo prazer.',
-        status: 'Quero Ler',
-        coverImage: 'https://images-na.ssl-images-amazon.com/images/I/41-TshG-Y5L._SX322_BO1,204,203,200_.jpg'
-      },
-      {
-        title: 'Mulheres que Correm com os Lobos',
-        author: 'Clarissa Pinkola Estés',
-        genre: 'Psicologia/Mitologia',
-        pages: 576,
-        synopsis: 'Uma profunda análise dos arquétipos femininos através de mitos, contos de fadas e histórias ancestrais.',
-        status: 'Quero Ler',
-        coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51lO06NfLML._SX323_BO1,204,203,200_.jpg'
-      }
-    ];
-
-    // INICIALIZAÇÃO
-    window.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      document.getElementById('goal-target').innerText = readingGoal;
-      syncFirestore();
-    });
-
-    // Sincronizar Firestore em tempo real
-    function syncFirestore() {
-      const q = query(collection(db, 'books'), orderBy('createdAt', 'desc'));
-      onSnapshot(q, (snapshot) => {
-        const booksData = [];
-        snapshot.forEach((docSnap) => {
-          booksData.push({ id: docSnap.id, ...docSnap.data() });
-        });
-
-        if (booksData.length === 0) {
-          // Se o banco estiver vazio, semeamos os padrões
-          seedDefaultBooks();
-        } else {
-          books = booksData;
-          updateDashboard();
-        }
-      }, (error) => {
-        console.warn('Fallback para LocalStorage:', error);
-        loadBackup();
-      });
-    }
-
-    async function seedDefaultBooks() {
-      for (const b of DEFAULT_BOOKS) {
-        await addDoc(collection(db, 'books'), {
-          ...b,
-          createdAt: serverTimestamp()
-        });
-      }
-    }
-
-    function loadBackup() {
-      const backup = localStorage.getItem('estante_da_lu_backup');
-      books = backup ? JSON.parse(backup) : DEFAULT_BOOKS;
-      updateDashboard();
-    }
-
-    // ATUALIZAR INTERFACE PRINCIPAL
-    function updateDashboard() {
-      // Filtragem
-      filteredList = books.filter(book => {
-        const queryLower = searchQuery.toLowerCase();
-        const matchesSearch = 
-          book.title.toLowerCase().includes(queryLower) ||
-          book.author.toLowerCase().includes(queryLower) ||
-          (book.genre && book.genre.toLowerCase().includes(queryLower)) ||
-          (book.synopsis && book.synopsis.toLowerCase().includes(queryLower));
-
-        const matchesStatus = currentFilter === 'Todos' || book.status === currentFilter;
-        return matchesSearch && matchesStatus;
-      });
-
-      // Renderização da lista
-      const listContainer = document.getElementById('books-list');
-      listContainer.innerHTML = '';
-
-      if (filteredList.length === 0) {
-        listContainer.innerHTML = `
-          <div class="col-span-full h-full flex flex-col items-center justify-center text-center p-8 py-16">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-bento-primary mb-4">
-              <i data-lucide="library" class="w-7 h-7"></i>
+    <!-- BOOK MODAL -->
+    <div id="book-modal" class="fixed inset-0 z-50 items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity hidden">
+      <div class="bg-white w-full sm:max-w-md md:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
+        
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div class="flex items-center gap-2">
+            <div id="modal-sparkles-badge" class="p-1 bg-amber-50 text-amber-600 rounded-lg hidden">
+              <i data-lucide="sparkles" class="w-4 h-4 animate-pulse"></i>
             </div>
-            <h3 class="font-extrabold text-slate-800 text-base">Nenhum livro encontrado</h3>
-            <p class="text-xs text-slate-400 max-w-xs mt-1.5">Que tal adicionar ou escanear um novo livro?</p>
+            <h2 id="modal-title" class="font-sans font-bold text-slate-800 text-lg">Adicionar Livro</h2>
           </div>
-        `;
-        lucide.createIcons();
-      } else {
-        filteredList.forEach(book => {
-          const hasImage = book.coverImage && book.coverImage.startsWith('http');
-          const coverHtml = hasImage 
-            ? `<div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10">
-                 <img src="${book.coverImage}" class="w-full h-full object-cover" alt="${book.title}" referrerPolicy="no-referrer">
-               </div>`
-            : `<div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 flex flex-col justify-between p-3 border-l-4 border-black/10 bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-900">
-                 <div class="text-[9px] font-bold uppercase tracking-wider opacity-80">${book.genre || 'Literatura'}</div>
-                 <div class="font-extrabold text-[11px] leading-tight line-clamp-3">${book.title}</div>
-                 <div class="text-[9px] font-semibold opacity-80 truncate">${book.author}</div>
-               </div>`;
+          <button onclick="closeBookModal()" class="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
 
-          const card = document.createElement('div');
-          card.className = "bg-slate-50 rounded-2xl p-4 flex gap-4 border border-slate-100 hover:shadow-md transition-all relative group";
-          card.innerHTML = `
-            ${coverHtml}
-            <div class="flex-1 min-w-0 flex flex-col justify-between h-36">
-              <div>
-                <div class="flex items-center justify-between gap-2 mb-1">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider ${
-                    book.status === 'Lido' ? 'bg-emerald-100 text-emerald-800' :
-                    book.status === 'Lendo' ? 'bg-indigo-100 text-bento-primary' : 'bg-slate-200 text-slate-700'
-                  }">${book.status}</span>
-                  <div class="opacity-0 group-hover:opacity-100 flex gap-1.5 transition-opacity">
-                    <button class="btn-edit p-1 hover:bg-slate-200 rounded text-slate-500" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                    <button class="btn-delete p-1 hover:bg-red-100 text-red-500 rounded" title="Excluir"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button>
+        <!-- Form Content -->
+        <form onsubmit="handleBookSubmit(event)" class="flex-1 overflow-y-auto p-5 space-y-4">
+          
+          <div id="modal-ai-banner" class="bg-amber-50/70 border border-amber-100 p-3 rounded-2xl flex gap-2 items-start text-xs text-amber-800 hidden">
+            <i data-lucide="sparkles" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+            <div>
+              <p class="font-semibold">Detectado por Inteligência Artificial</p>
+              <p class="opacity-90 mt-0.5">Revise e complete as informações antes de salvar na estante.</p>
+            </div>
+          </div>
+
+          <div id="modal-error-banner" class="bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-2xl flex gap-2 items-center text-xs hidden">
+            <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-500"></i>
+            <span id="modal-error-text">Ocorreu um erro.</span>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Título do Livro *</label>
+            <input
+              id="form-title"
+              type="text"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium"
+              required
+              placeholder="Ex: O Pequeno Príncipe"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Autor(a) *</label>
+            <input
+              id="form-author"
+              type="text"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium"
+              required
+              placeholder="Ex: Antoine de Saint-Exupéry"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block">Capa do Livro (URL ou busca automática)</label>
+            <div class="flex gap-2">
+              <input
+                id="form-cover"
+                type="url"
+                oninput="handleCoverInput(this.value)"
+                placeholder="Cole o link da imagem da capa"
+                class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium"
+              />
+              <button
+                id="btn-fetch-cover"
+                type="button"
+                onclick="triggerCoverFetch()"
+                class="px-4 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shrink-0 flex items-center justify-center gap-1"
+              >
+                Buscar Capa
+              </button>
+            </div>
+            
+            <!-- Cover Preview -->
+            <div id="cover-preview-box" class="mt-3 flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 hidden">
+              <div class="w-12 h-16 rounded-md shadow-sm overflow-hidden bg-white shrink-0 border border-slate-200">
+                <img id="cover-preview-img" src="" referrerpolicy="no-referrer" class="w-full h-full object-cover" alt="Preview" />
+              </div>
+              <div class="text-xs text-slate-500">
+                <p class="font-semibold text-slate-700">Pré-visualização da capa</p>
+                <p id="cover-preview-url" class="line-clamp-1 break-all text-[10px] opacity-80"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Gênero</label>
+              <input
+                id="form-genre"
+                type="text"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium"
+                placeholder="Ex: Fantasia, Drama"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Páginas</label>
+              <input
+                id="form-pages"
+                type="number"
+                min="0"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium"
+                placeholder="Ex: 160"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block">Status de Leitura</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                id="status-btn-Quero-Ler"
+                onclick="setFormStatus('Quero Ler')"
+                class="py-2 rounded-xl text-xs font-semibold border bg-[#FF9F0A]/10 text-amber-800 border-amber-300 ring-2 ring-amber-500/20"
+              >
+                Quero Ler
+              </button>
+              <button
+                type="button"
+                id="status-btn-Lendo"
+                onclick="setFormStatus('Lendo')"
+                class="py-2 rounded-xl text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+              >
+                Lendo
+              </button>
+              <button
+                type="button"
+                id="status-btn-Lido"
+                onclick="setFormStatus('Lido')"
+                class="py-2 rounded-xl text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+              >
+                Lido
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Sinopse</label>
+            <textarea
+              id="form-synopsis"
+              rows="4"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium resize-none leading-relaxed"
+              placeholder="Escreva algo sobre este livro maravilhoso..."
+            ></textarea>
+          </div>
+
+          <!-- Footer Buttons -->
+          <div class="pt-4 border-t border-slate-100 flex gap-3">
+            <button
+              type="button"
+              onclick="closeBookModal()"
+              class="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="flex-1 py-3 bg-[#7986cb] hover:bg-[#7986cb]/95 text-white rounded-xl text-sm font-semibold transition-colors shadow-md hover:shadow-lg shadow-[#7986cb]/10 flex items-center justify-center gap-1.5"
+            >
+              Salvar na Estante
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- SCANNER MODAL -->
+    <div id="scanner-modal" class="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md hidden">
+      <div class="relative bg-slate-900 w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white">
+        
+        <!-- Header -->
+        <div class="p-5 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 backdrop-blur z-10">
+          <div class="flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-5 h-5 text-[#b39ddb] animate-pulse"></i>
+            <h2 class="font-sans font-bold text-lg">Escanear Lombadas</h2>
+          </div>
+          <button onclick="closeScannerModal()" class="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Camera Area / File Upload Area -->
+        <div class="flex-1 relative bg-black flex flex-col justify-center items-center min-h-[50vh] max-h-[70vh]">
+          
+          <!-- AI Scanning Spinner Overlay -->
+          <div id="scanning-overlay" class="absolute inset-0 bg-slate-950/90 z-20 flex flex-col items-center justify-center p-6 text-center hidden">
+            <div class="relative mb-6">
+              <div class="w-16 h-16 rounded-full border-4 border-[#7986cb]/20 border-t-[#7986cb] animate-spin"></div>
+              <i data-lucide="sparkles" class="w-6 h-6 text-[#b39ddb] absolute inset-0 m-auto animate-bounce"></i>
+            </div>
+            <h3 class="font-bold text-lg text-white mb-2">Lendo a Estante da Lu</h3>
+            <p id="scanning-status-text" class="text-[#b39ddb] text-sm font-medium animate-pulse">Enviando foto para a IA...</p>
+            <p class="text-xs text-slate-500 mt-4 max-w-xs">
+              O Gemini 2.5 Flash está analisando sua foto para extrair títulos, autores e sinopses. Isso pode levar alguns segundos.
+            </p>
+          </div>
+
+          <!-- Error Banner -->
+          <div id="scanner-error-banner" class="absolute top-4 left-4 right-4 z-10 bg-rose-950/90 border border-rose-800 text-rose-100 p-4 rounded-2xl flex gap-2.5 items-start text-xs leading-relaxed hidden">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <p class="font-bold">Houve um imprevisto:</p>
+              <p id="scanner-error-message" class="opacity-90"></p>
+              <button onclick="restartCameraStream()" class="mt-2 text-[#b39ddb] font-bold hover:underline flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Tentar ligar câmera novamente
+              </button>
+            </div>
+          </div>
+
+          <!-- Video Camera Stream Container -->
+          <div id="camera-stream-container" class="relative w-full h-full flex justify-center items-center overflow-hidden hidden">
+            <video id="scanner-video" autoplay playsinline class="w-full h-full object-cover min-h-[50vh]"></video>
+            
+            <!-- Neon Laser Scanner Overlays -->
+            <div class="absolute inset-0 border-[30px] border-black/40 pointer-events-none flex items-center justify-center">
+              <div class="relative w-full max-w-[280px] h-[340px] border-2 border-[#7986cb] rounded-2xl shadow-[0_0_15px_rgba(121,134,203,0.3)]">
+                <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#b39ddb] rounded-tl-md"></div>
+                <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#b39ddb] rounded-tr-md"></div>
+                <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#b39ddb] rounded-bl-md"></div>
+                <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#b39ddb] rounded-br-md"></div>
+                <div class="absolute left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#b39ddb] to-transparent shadow-[0_0_8px_#7986cb] animate-scan"></div>
+              </div>
+            </div>
+
+            <div class="absolute top-4 bg-black/60 backdrop-blur px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide text-center text-slate-200">
+              Aponte para a prateleira ou lombada dos livros
+            </div>
+          </div>
+
+          <!-- Upload Fallback Container -->
+          <div id="upload-fallback-container" class="p-8 text-center flex flex-col items-center max-w-sm">
+            <div class="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center text-slate-400 mb-4 border border-slate-700 shadow-inner">
+              <i data-lucide="camera" class="w-8 h-8"></i>
+            </div>
+            <h3 class="font-bold text-lg text-slate-200 mb-1">Permissão da Câmera</h3>
+            <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+              Tire uma foto na hora com o celular ou escolha uma imagem salva de sua prateleira para que nossa IA analise.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="p-5 border-t border-slate-800 bg-slate-900 flex flex-col gap-3">
+          <div class="flex gap-3 justify-center items-center w-full">
+            <button
+              id="btn-capture-frame"
+              onclick="captureCameraImage()"
+              class="flex-1 py-3.5 bg-[#7986cb] hover:bg-[#7986cb]/90 text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:shadow-[#7986cb]/20 flex items-center justify-center gap-2 hidden"
+            >
+              <i data-lucide="camera" class="w-4 h-4"></i> Tirar Foto
+            </button>
+
+            <button
+              id="btn-file-trigger"
+              onclick="triggerFileInput()"
+              class="w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="image" class="w-4 h-4"></i>
+              <span id="btn-file-trigger-text">Escolher Imagem</span>
+            </button>
+          </div>
+
+          <input
+            id="hidden-file-input"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onchange="handleFileInputChange(event)"
+            class="hidden"
+          />
+
+          <p class="text-[11px] text-slate-500 text-center">
+            Dica: Para melhores resultados, garanta boa iluminação e foco direto nas palavras das lombadas.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIREBASE SDK & APP LOGIC SCRIPT MODULE -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { 
+        initializeFirestore, 
+        collection, 
+        onSnapshot, 
+        addDoc, 
+        updateDoc, 
+        deleteDoc, 
+        doc, 
+        serverTimestamp, 
+        query, 
+        orderBy 
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+      // 1. Firebase configuration
+      const firebaseConfig = {
+        projectId: "estantelivros-luciana",
+        appId: "1:997707452550:web:f11d2e83cad236c8870107",
+        apiKey: "AIzaSyAJOs9uMbLfhSWrV2xLh-YXbsSd4B1glrk",
+        authDomain: "estantelivros-luciana.firebaseapp.com",
+        firestoreDatabaseId: "ai-studio-estantedalu-d9be5acc-3d19-41a0-ab85-993a300c4a8e",
+        storageBucket: "estantelivros-luciana.firebasestorage.app",
+        messagingSenderId: "997707452550",
+        measurementId: ""
+      };
+
+      // Initialize Firebase App & Custom Database ID Firestore
+      const app = initializeApp(firebaseConfig);
+      const db = initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId || "(default)");
+
+      // 2. Default Seed books (fallback/backup)
+      const DEFAULT_BOOKS = [
+        {
+          id: 'default_1',
+          title: 'O Nome da Rosa',
+          author: 'Umberto Eco',
+          genre: 'Mistério/Ficção Histórica',
+          pages: 560,
+          synopsis: 'Na Itália medieval, em um mosteiro franciscano isolado, monges começam a morrer de forma misteriosa e assustadora. O frade Guilherme de Baskerville e seu noviço Adso de Melk tentam decifrar os segredos de uma biblioteca labiríntica e cheia de segredos.',
+          status: 'Lido',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51rR-Zq-F1L._SX331_BO1,204,203,200_.jpg'
+        },
+        {
+          id: 'default_2',
+          title: 'Cem Anos de Solidão',
+          author: 'Gabriel García Márquez',
+          genre: 'Realismo Mágico',
+          pages: 448,
+          synopsis: 'A saga multigeracional da família Buendía na fictícia cidade de Macondo. Uma obra-prima literária que combina o fantástico e o cotidiano para narrar a solidão, o amor, a guerra e o destino humano.',
+          status: 'Lido',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/817FFN3upTL.jpg'
+        },
+        {
+          id: 'default_3',
+          title: 'A Garota do Lago',
+          author: 'Charlie Donlea',
+          genre: 'Suspense',
+          pages: 296,
+          synopsis: 'Uma jovem jornalista investigativa tenta desvendar o violento assassinato de uma estudante de medicina em uma pacata cidade de veraneio cercada por mistérios e segredos de família.',
+          status: 'Lendo',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51Iu9m2847L._SX337_BO1,204,203,200_.jpg'
+        },
+        {
+          id: 'default_4',
+          title: 'Admirável Mundo Novo',
+          author: 'Aldous Huxley',
+          genre: 'Ficção Científica',
+          pages: 312,
+          synopsis: 'Uma visão assustadora e profética de uma sociedade futura altamente controlada, condicionada geneticamente e anestesiada pelo prazer e pelo consumo, onde a individualidade é proibida.',
+          status: 'Quero Ler',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/41-TshG-Y5L._SX322_BO1,204,203,200_.jpg'
+        },
+        {
+          id: 'default_5',
+          title: 'Mulheres que Correm com os Lobos',
+          author: 'Clarissa Pinkola Estés',
+          genre: 'Psicologia/Mitologia',
+          pages: 576,
+          synopsis: 'Uma profunda análise dos arquétipos femininos através de mitos, contos de fadas e histórias ancestrais, resgatando a essência da "Mulher Selvagem" e sua força vital oculta.',
+          status: 'Quero Ler',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51lO06NfLML._SX323_BO1,204,203,200_.jpg'
+        }
+      ];
+
+      const PASTEL_THEMES = [
+        { bg: 'from-amber-100 to-amber-200 text-amber-900 border-amber-300', accent: 'bg-amber-400' },
+        { bg: 'from-rose-100 to-rose-200 text-rose-900 border-rose-300', accent: 'bg-rose-400' },
+        { bg: 'from-purple-100 to-purple-200 text-purple-900 border-purple-300', accent: 'bg-purple-400' },
+        { bg: 'from-sky-100 to-sky-200 text-sky-900 border-sky-300', accent: 'bg-sky-400' },
+        { bg: 'from-emerald-100 to-emerald-200 text-emerald-900 border-emerald-300', accent: 'bg-emerald-400' },
+        { bg: 'from-indigo-100 to-indigo-200 text-indigo-900 border-indigo-300', accent: 'bg-indigo-400' },
+      ];
+
+      // 3. Application Reactive State
+      const state = {
+        books: [],
+        loading: true,
+        searchQuery: "",
+        selectedStatus: "Todos",
+        editingBook: null,
+        reviewQueue: [],
+        isReviewMode: false,
+        expandedBookIds: {},
+        readingGoal: parseInt(localStorage.getItem("estante_da_lu_goal") || "24", 10),
+        formSelectedStatus: "Quero Ler"
+      };
+
+      // Simple stable hash for covers
+      function getHash(str) {
+        let hash = 0;
+        if (!str) return hash;
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return Math.abs(hash);
+      }
+
+      // 4. Robust Intelligent Cover Fetching (Google Books + Open Library fallbacks)
+      async function fetchBookCover(title, author) {
+        if (!title) return "";
+        
+        // Step 1: Try Google Books API
+        try {
+          const queryStr = encodeURIComponent(`intitle:${title.trim()}${author ? ` inauthor:${author.trim()}` : ""}`);
+          const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${queryStr}&maxResults=1`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+              const thumbnail = data.items[0].volumeInfo?.imageLinks?.thumbnail;
+              if (thumbnail) {
+                return thumbnail.replace(/^http:/, "https:");
+              }
+            }
+          }
+        } catch (error) {
+          console.warn("Google Books API cover fetch failed. Trying Open Library fallback...", error);
+        }
+
+        // Step 2: Open Library Covers API Fallback (Fully open, no key required)
+        try {
+          const queryStr = encodeURIComponent(title.trim() + (author ? ` ${author.trim()}` : ""));
+          const response = await fetch(`https://openlibrary.org/search.json?q=${queryStr}&limit=1`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.docs && data.docs.length > 0) {
+              const docItem = data.docs[0];
+              if (docItem.cover_i) {
+                return `https://covers.openlibrary.org/b/id/${docItem.cover_i}-M.jpg`;
+              } else if (docItem.isbn && docItem.isbn.length > 0) {
+                return `https://covers.openlibrary.org/b/isbn/${docItem.isbn[0]}-M.jpg`;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Open Library fallback failed too:", error);
+        }
+
+        return "";
+      }
+
+      // Initialize Lucide icons on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        lucide.createIcons();
+      });
+
+      // 5. Setup Live Firestore Subscription
+      function initFirestoreSync() {
+        try {
+          const q = query(collection(db, "books"), orderBy("createdAt", "desc"));
+          onSnapshot(
+            q,
+            (snapshot) => {
+              const booksData = [];
+              snapshot.forEach((docSnap) => {
+                booksData.push({ id: docSnap.id, ...docSnap.data() });
+              });
+
+              if (booksData.length === 0) {
+                state.books = DEFAULT_BOOKS;
+                localStorage.setItem("estante_da_lu_backup", JSON.stringify(DEFAULT_BOOKS));
+              } else {
+                state.books = booksData;
+                localStorage.setItem("estante_da_lu_backup", JSON.stringify(booksData));
+              }
+              state.loading = false;
+              renderApp();
+            },
+            (error) => {
+              console.warn("Firestore subscription failed, falling back to local backup:", error);
+              loadLocalBackup();
+            }
+          );
+        } catch (err) {
+          console.warn("Firestore initialization error, using local backup:", err);
+          loadLocalBackup();
+        }
+      }
+
+      function loadLocalBackup() {
+        const backup = localStorage.getItem("estante_da_lu_backup");
+        if (backup) {
+          const parsed = JSON.parse(backup);
+          state.books = parsed.length === 0 ? DEFAULT_BOOKS : parsed;
+        } else {
+          state.books = DEFAULT_BOOKS;
+        }
+        state.loading = false;
+        renderApp();
+      }
+
+      // 6. Rendering Logic
+      function renderApp() {
+        const booksGrid = document.getElementById("books-grid");
+        const shimmer = document.getElementById("loading-shimmer");
+        const emptyState = document.getElementById("empty-state");
+        const emptyStateText = document.getElementById("empty-state-text");
+        
+        // Hide/Show Loading state
+        if (state.loading) {
+          shimmer.classList.remove("hidden");
+          booksGrid.classList.add("hidden");
+          emptyState.classList.add("hidden");
+          return;
+        } else {
+          shimmer.classList.add("hidden");
+        }
+
+        // Apply filters
+        const filteredBooks = state.books.filter((book) => {
+          const matchesSearch =
+            book.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+            book.author.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+            (book.genre && book.genre.toLowerCase().includes(state.searchQuery.toLowerCase())) ||
+            (book.synopsis && book.synopsis.toLowerCase().includes(state.searchQuery.toLowerCase()));
+
+          const matchesStatus = state.selectedStatus === "Todos" || book.status === state.selectedStatus;
+
+          return matchesSearch && matchesStatus;
+        });
+
+        // Set Empty State
+        if (filteredBooks.length === 0) {
+          booksGrid.classList.add("hidden");
+          emptyState.classList.remove("hidden");
+          if (state.searchQuery) {
+            emptyStateText.innerText = "Nenhum resultado corresponde à sua pesquisa. Tente usar outras palavras.";
+          } else {
+            emptyStateText.innerText = "Nenhum livro cadastrado nesta seção. Que tal alimentar a máquina de escrever com novas histórias?";
+          }
+        } else {
+          emptyState.classList.add("hidden");
+          booksGrid.classList.remove("hidden");
+        }
+
+        // Generate Grid Cards
+        booksGrid.innerHTML = filteredBooks.map((book) => {
+          const isExpanded = state.expandedBookIds[book.id] || false;
+          const hashVal = getHash(book.title);
+          const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
+          
+          // Render Cover HTML
+          let coverHTML = "";
+          if (book.coverImage && book.coverImage.startsWith("http")) {
+            coverHTML = `
+              <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10">
+                <img
+                  src="${book.coverImage}"
+                  referrerpolicy="no-referrer"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                  class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  alt="${book.title}"
+                />
+                <!-- Fallback gradient hidden by default, shown if image breaks -->
+                <div style="display:none;" class="absolute inset-0 bg-gradient-to-br ${theme.bg} flex flex-col justify-between p-3 border-l-4 border-black/10 select-none text-slate-800">
+                  <div class="text-[9px] uppercase tracking-wider font-semibold opacity-70 truncate">${book.genre || 'Literatura'}</div>
+                  <div class="flex-1 flex flex-col justify-center my-1 text-center">
+                    <h4 class="font-serif text-[10px] font-bold leading-tight line-clamp-3 mb-1">${book.title || 'Sem Título'}</h4>
+                    <p class="text-[8px] opacity-80 italic truncate">${book.author || 'Sem Autor'}</p>
+                  </div>
+                  <div class="flex justify-center items-center mt-auto">
+                    <div class="w-2.5 h-2.5 rounded-full ${theme.accent} opacity-60"></div>
                   </div>
                 </div>
-                <h4 class="font-bold text-sm text-slate-800 truncate" title="${book.title}">${book.title}</h4>
-                <p class="text-[11px] text-slate-500 font-medium truncate">${book.author}</p>
-                <p class="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">${book.synopsis || 'Nenhuma sinopse disponível.'}</p>
+                <div class="absolute top-0 left-0 w-1 h-full bg-black/10 rounded-r-sm pointer-events-none"></div>
+                <div class="absolute top-0 left-2 w-px h-full bg-white/20 pointer-events-none"></div>
               </div>
-              <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold border-t border-slate-200/50 pt-2">
-                <span class="truncate max-w-[120px]">${book.genre || 'Geral'}</span>
-                <span>${book.pages || 0} págs</span>
+            `;
+          } else {
+            coverHTML = `
+              <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 flex flex-col justify-between p-3 border-l-4 border-black/10 select-none bg-gradient-to-br ${theme.bg} text-slate-800">
+                <div class="absolute top-0 left-0 w-1 h-full bg-black/5 rounded-r-sm"></div>
+                <div class="absolute top-0 left-2 w-px h-full bg-white/30"></div>
+                <div class="text-[9px] uppercase tracking-wider font-semibold opacity-70 truncate">${book.genre || 'Literatura'}</div>
+                <div class="flex-1 flex flex-col justify-center my-1 text-center">
+                  <h4 class="font-serif text-[10px] font-bold leading-tight line-clamp-3 mb-1">${book.title || 'Sem Título'}</h4>
+                  <p class="text-[8px] opacity-80 italic truncate">${book.author || 'Sem Autor'}</p>
+                </div>
+                <div class="flex justify-center items-center mt-auto">
+                  <div class="w-2.5 h-2.5 rounded-full ${theme.accent} opacity-60"></div>
+                </div>
               </div>
+            `;
+          }
+
+          // Status Badge Markup
+          let statusBadge = "";
+          if (book.status === "Lendo") {
+            statusBadge = `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EDE7F6] text-[#7986cb] border border-[#b39ddb]/30">
+                <i data-lucide="clock" class="w-3 h-3 text-[#7986cb] animate-pulse"></i>
+                Lendo
+              </span>
+            `;
+          } else if (book.status === "Lido") {
+            statusBadge = `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-[#a5d6a7]/40">
+                <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
+                Lido
+              </span>
+            `;
+          } else {
+            statusBadge = `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/50">
+                <i data-lucide="book-open" class="w-3 h-3 text-amber-600"></i>
+                Quero Ler
+              </span>
+            `;
+          }
+
+          // Synopsis Accordion Area
+          let synopsisSection = "";
+          if (book.synopsis) {
+            synopsisSection = `
+              <div class="border-t border-slate-50 pt-3 mt-1">
+                <button
+                  onclick="toggleSynopsis('${book.id}')"
+                  class="w-full flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors py-1"
+                >
+                  <span>Sinopse</span>
+                  <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5"></i>
+                </button>
+                ${isExpanded ? `
+                  <p class="text-xs text-slate-600 mt-2 leading-relaxed text-justify bg-slate-50/50 p-2.5 rounded-xl border border-slate-50">
+                    ${book.synopsis}
+                  </p>
+                ` : ""}
+              </div>
+            `;
+          }
+
+          return `
+            <div id="book-card-${book.id}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300 flex flex-col gap-4 relative overflow-hidden">
+              <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#EDE7F6]/30 via-transparent to-transparent rounded-tr-2xl pointer-events-none"></div>
+              
+              <div class="flex gap-4 items-start">
+                ${coverHTML}
+                
+                <div class="flex-1 min-w-0 flex flex-col justify-between h-36">
+                  <div>
+                    <h3 class="font-sans font-bold text-slate-800 text-base leading-snug line-clamp-2">${book.title}</h3>
+                    <p class="text-sm text-slate-500 font-medium truncate mt-0.5">por ${book.author}</p>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                      <span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.genre || 'Não classificado'}</span>
+                      ${book.pages > 0 ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.pages} pág.</span>` : ""}
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between mt-auto">
+                    ${statusBadge}
+                    
+                    <div class="flex gap-1.5">
+                      <button onclick="openEditBookModal('${book.id}')" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar Livro">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                      </button>
+                      <button onclick="deleteBookDoc('${book.id}')" class="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors" title="Excluir Livro">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              ${synopsisSection}
             </div>
           `;
+        }).join("");
 
-          // Event Listeners dos botões
-          card.querySelector('.btn-edit').addEventListener('click', () => editBook(book));
-          card.querySelector('.btn-delete').addEventListener('click', () => deleteBook(book.id));
+        // Calculate and Update Dashboard stats
+        const totalBooks = state.books.length;
+        const readBooks = state.books.filter((b) => b.status === "Lido").length;
+        const readingBooks = state.books.filter((b) => b.status === "Lendo").length;
+        const wantToReadBooks = state.books.filter((b) => b.status === "Quero Ler").length;
 
-          listContainer.appendChild(card);
-        });
+        // Update Reading Goals widget
+        document.getElementById("goal-current-books").innerText = readBooks;
+        document.getElementById("goal-target").innerText = state.readingGoal;
+        const percentage = Math.min(100, Math.round((readBooks / state.readingGoal) * 100)) || 0;
+        document.getElementById("goal-percentage").innerText = `${percentage}% Concluído`;
+        document.getElementById("goal-count-label").innerText = `${readBooks}/${state.readingGoal} livros`;
+        document.getElementById("goal-progress-bar").style.width = `${percentage}%`;
+
+        // Update distribution boxes
+        document.getElementById("dist-lido").innerText = readBooks;
+        document.getElementById("dist-lendo").innerText = readingBooks;
+        document.getElementById("dist-quero-ler").innerText = wantToReadBooks;
+        document.getElementById("total-firestore-label").innerText = `Total de ${totalBooks} registros no Firestore.`;
+
+        // Update "Pauta Literária" dynamic stats panel
+        const statsContent = document.getElementById("stats-dynamic-content");
+        if (readBooks > 0) {
+          statsContent.innerHTML = `
+            <div class="mt-1">
+              <p class="text-4xl font-black tracking-tight text-white flex items-baseline gap-1">
+                +${Math.round((readBooks / (totalBooks || 1)) * 100)}%
+              </p>
+              <p class="text-xs opacity-80 mt-1 leading-relaxed">
+                Da sua curadoria especial de ${totalBooks} livros foi finalizada!
+              </p>
+            </div>
+          `;
+        } else {
+          statsContent.innerHTML = `
+            <div class="mt-1">
+              <p class="text-xl font-bold tracking-tight">Pronta para Começar!</p>
+              <p class="text-xs opacity-85 mt-1 leading-relaxed">
+                Registre os livros que já leu para exibir suas estatísticas completas de leitura aqui.
+              </p>
+            </div>
+          `;
+        }
+
+        // Update active review modes
+        const reviewDrawer = document.getElementById("review-drawer");
+        if (state.isReviewMode && state.reviewQueue.length > 0) {
+          reviewDrawer.classList.remove("hidden");
+          reviewDrawer.classList.add("flex");
+          document.getElementById("review-drawer-count").innerText = `Analisando ${state.reviewQueue.length} ${state.reviewQueue.length === 1 ? 'livro' : 'livros'}`;
+        } else {
+          reviewDrawer.classList.add("hidden");
+          reviewDrawer.classList.remove("flex");
+        }
+
+        // Re-compile Lucide Icons
         lucide.createIcons();
       }
 
-      // Cálculos e estatísticas
-      const total = books.length;
-      const lendo = books.filter(b => b.status === 'Lendo').length;
-      const lido = books.filter(b => b.status === 'Lido').length;
-      const quero = books.filter(b => b.status === 'Quero Ler').length;
-
-      document.getElementById('dist-lido').innerText = lido;
-      document.getElementById('dist-lendo').innerText = lendo;
-      document.getElementById('dist-quero').innerText = quero;
-      document.getElementById('dist-total').innerText = `Total de ${total} registros no Firestore.`;
-
-      // Atualizar barra de metas
-      document.getElementById('goal-read-count').innerText = lido;
-      document.getElementById('goal-text').innerText = `${lido}/${readingGoal} livros`;
-      const percentage = Math.min(100, Math.round((lido / readingGoal) * 100)) || 0;
-      document.getElementById('goal-percentage').innerText = `${percentage}% Concluído`;
-      document.getElementById('goal-bar').style.width = `${percentage}%`;
-
-      // Atualizar pauta literária
-      document.getElementById('stats-percentage-title').innerText = `+${percentage}%`;
-      if (lido > 0) {
-        document.getElementById('stats-percentage-desc').innerText = `Da sua curadoria especial de ${total} livros foi finalizada!`;
-      } else {
-        document.getElementById('stats-percentage-desc').innerText = `Registre suas leituras para exibir as estatísticas aqui.`;
-      }
-
-      // Backup Local
-      localStorage.setItem('estante_da_lu_backup', JSON.stringify(books));
-    }
-
-    // BUSCA DE CAPAS PELO GOOGLE BOOKS
-    async function fetchBookCover(title, author) {
-      try {
-        const queryStr = encodeURIComponent(`intitle:${title}${author ? ` inauthor:${author}` : ''}`);
-        const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${queryStr}&maxResults=1`);
-        if (!response.ok) return undefined;
-        const data = await response.json();
-        if (data.items && data.items.length > 0) {
-          const volumeInfo = data.items[0].volumeInfo;
-          if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
-            return volumeInfo.imageLinks.thumbnail.replace(/^http:/, 'https:');
-          }
-        }
-      } catch (err) {
-        console.error('Busca de capa falhou:', err);
-      }
-      return undefined;
-    }
-
-    // FUNÇÕES EXPOSTAS AO WINDOW PARA USO DOS BOTÕES HTML
-    window.setStatusFilter = function(status) {
-      currentFilter = status;
-      // Atualizar classes dos botões das abas
-      ['Todos', 'Quero Ler', 'Lendo', 'Lido'].forEach(item => {
-        const tabEl = document.getElementById(`tab-${item}`);
-        const filterEl = document.getElementById(`filter-${item.replace(' ', '-')}`);
+      // 7. Event listeners & State Modifiers
+      window.filterStatus = function(status) {
+        state.selectedStatus = status;
         
-        if (item === status) {
-          if (tabEl) {
-            tabEl.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all bg-white text-bento-primary shadow-sm border border-slate-100";
+        // Toggle selected styling on Navigation
+        ["Todos", "Lendo", "Lido"].forEach((s) => {
+          const btn = document.getElementById(`nav-btn-${s}`);
+          if (btn) {
+            if (s === status) {
+              btn.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all bg-white text-[#7986cb] shadow-sm border border-slate-100";
+            } else {
+              btn.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700";
+            }
           }
-          if (filterEl) {
-            filterEl.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap bg-white text-bento-primary shadow-sm";
-          }
-        } else {
-          if (tabEl) {
-            tabEl.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700";
-          }
-          if (filterEl) {
-            filterEl.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500";
-          }
-        }
-      });
-      updateDashboard();
-    };
-
-    window.searchBooks = function(value) {
-      searchQuery = value;
-      updateDashboard();
-    };
-
-    window.changeGoal = function(amount) {
-      readingGoal = Math.max(1, readingGoal + amount);
-      document.getElementById('goal-target').innerText = readingGoal;
-      localStorage.setItem('estante_da_lu_goal', readingGoal.toString());
-      updateDashboard();
-    };
-
-    // AÇÕES DE CADASTRO/EDIÇÃO
-    window.openBookModal = function() {
-      document.getElementById('book-form').reset();
-      document.getElementById('form-book-id').value = '';
-      document.getElementById('book-modal-title').innerText = 'Adicionar Livro';
-      document.getElementById('cover-preview-container').classList.add('hidden');
-      document.getElementById('book-modal').classList.remove('hidden');
-    };
-
-    window.closeBookModal = function() {
-      document.getElementById('book-modal').classList.add('hidden');
-    };
-
-    window.autoFetchCover = async function() {
-      const title = document.getElementById('form-title').value;
-      const author = document.getElementById('form-author').value;
-      if (!title) {
-        alert('Por favor, informe o título do livro primeiro.');
-        return;
-      }
-      const btn = event.target;
-      btn.innerText = 'Buscando...';
-      const cover = await fetchBookCover(title, author);
-      btn.innerText = 'Buscar Capa';
-      if (cover) {
-        document.getElementById('form-cover-url').value = cover;
-        document.getElementById('cover-preview-img').src = cover;
-        document.getElementById('cover-preview-container').classList.remove('hidden');
-      } else {
-        alert('Nenhuma capa encontrada para este título.');
-      }
-    };
-
-    window.saveBook = async function(e) {
-      e.preventDefault();
-      const id = document.getElementById('form-book-id').value;
-      const title = document.getElementById('form-title').value;
-      const author = document.getElementById('form-author').value;
-      let coverImage = document.getElementById('form-cover-url').value;
-      const genre = document.getElementById('form-genre').value;
-      const pages = parseInt(document.getElementById('form-pages').value || '0', 10);
-      const status = document.getElementById('form-status').value;
-      const synopsis = document.getElementById('form-synopsis').value;
-
-      if (!coverImage) {
-        coverImage = await fetchBookCover(title, author) || '';
-      }
-
-      const bookPayload = {
-        title,
-        author,
-        coverImage,
-        genre,
-        pages,
-        status,
-        synopsis,
-        updatedAt: serverTimestamp()
-      };
-
-      try {
-        if (id) {
-          await updateDoc(doc(db, 'books', id), bookPayload);
-        } else {
-          await addDoc(collection(db, 'books'), {
-            ...bookPayload,
-            createdAt: serverTimestamp()
-          });
-        }
-        closeBookModal();
-      } catch (err) {
-        console.error('Erro ao salvar no Firestore:', err);
-      }
-
-      // Se estiver no modo revisão da IA, avança a fila
-      if (isReviewMode) {
-        reviewQueue.shift();
-        if (reviewQueue.length > 0) {
-          showReviewBook(reviewQueue[0]);
-        } else {
-          endAiReview();
-        }
-      }
-    };
-
-    function editBook(book) {
-      document.getElementById('form-book-id').value = book.id || '';
-      document.getElementById('form-title').value = book.title || '';
-      document.getElementById('form-author').value = book.author || '';
-      document.getElementById('form-cover-url').value = book.coverImage || '';
-      document.getElementById('form-genre').value = book.genre || '';
-      document.getElementById('form-pages').value = book.pages || '';
-      document.getElementById('form-status').value = book.status || 'Quero Ler';
-      document.getElementById('form-synopsis').value = book.synopsis || '';
-
-      if (book.coverImage) {
-        document.getElementById('cover-preview-img').src = book.coverImage;
-        document.getElementById('cover-preview-container').classList.remove('hidden');
-      } else {
-        document.getElementById('cover-preview-container').classList.add('hidden');
-      }
-
-      document.getElementById('book-modal-title').innerText = 'Editar Livro';
-      document.getElementById('book-modal').classList.remove('hidden');
-    }
-
-    async function deleteBook(id) {
-      if (confirm('Deseja mesmo remover este livro?')) {
-        try {
-          await deleteDoc(doc(db, 'books', id));
-        } catch (err) {
-          console.error('Erro ao deletar:', err);
-        }
-      }
-    }
-
-    // SCANNER E WEBCAM
-    window.openScannerModal = async function() {
-      document.getElementById('scanner-loading').classList.add('hidden');
-      document.getElementById('scanner-modal').classList.remove('hidden');
-      
-      try {
-        webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        document.getElementById('webcam-feed').srcObject = webcamStream;
-      } catch (err) {
-        console.warn('Câmera indisponível:', err);
-      }
-    };
-
-    window.closeScannerModal = function() {
-      if (webcamStream) {
-        webcamStream.getTracks().forEach(track => track.stop());
-      }
-      document.getElementById('scanner-modal').classList.add('hidden');
-    };
-
-    window.capturePhoto = function() {
-      const video = document.getElementById('webcam-feed');
-      const canvas = document.getElementById('capture-canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      sendImageToGemini(dataUrl);
-    };
-
-    window.uploadPhoto = function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        sendImageToGemini(event.target.result);
-      };
-      reader.readAsDataURL(file);
-    };
-
-    async function sendImageToGemini(base64Image) {
-      document.getElementById('scanner-loading').classList.remove('hidden');
-      document.getElementById('scan-status').innerText = 'Enviando ao Gemini 2.5 Flash...';
-
-      try {
-        const response = await fetch('/api/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64Image })
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.books && result.books.length > 0) {
-            closeScannerModal();
-            // Buscar capas no Google Books em segundo plano para o fluxo de revisão
-            reviewQueue = await Promise.all(result.books.map(async b => {
-              const cover = await fetchBookCover(b.title, b.author);
-              return { ...b, coverImage: cover || '' };
-            }));
-
-            isReviewMode = true;
-            document.getElementById('review-status-text').innerText = `Analisando ${reviewQueue.length} ${reviewQueue.length === 1 ? 'livro' : 'livros'}`;
-            document.getElementById('review-banner').classList.remove('hidden');
-            startAiReview();
-          } else {
-            alert('Não foi possível identificar livros nesta foto. Tente novamente.');
-            document.getElementById('scanner-loading').classList.add('hidden');
+        // Toggle bento filters active styling
+        ["Todos", "Quero Ler", "Lendo", "Lido"].forEach((s) => {
+          const pill = document.getElementById(`filter-pill-${s.replace(" ", "-")}`);
+          if (pill) {
+            if (s === status) {
+              pill.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap bg-white text-[#7986cb] shadow-sm";
+            } else {
+              pill.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800";
+            }
           }
+        });
+
+        renderApp();
+      };
+
+      window.handleSearch = function(value) {
+        state.searchQuery = value;
+        renderApp();
+      };
+
+      window.updateReadingGoal = function(diff) {
+        const nextGoal = state.readingGoal + diff;
+        if (nextGoal < 1) return;
+        state.readingGoal = nextGoal;
+        localStorage.setItem("estante_da_lu_goal", nextGoal);
+        renderApp();
+      };
+
+      window.toggleSynopsis = function(bookId) {
+        state.expandedBookIds[bookId] = !state.expandedBookIds[bookId];
+        renderApp();
+      };
+
+      // 8. CRUD Operations
+      window.openAddBookModal = function() {
+        state.editingBook = null;
+        document.getElementById("modal-title").innerText = "Adicionar Livro";
+        document.getElementById("modal-sparkles-badge").classList.add("hidden");
+        document.getElementById("modal-ai-banner").classList.add("hidden");
+        document.getElementById("modal-error-banner").classList.add("hidden");
+
+        // Reset Form
+        document.getElementById("form-title").value = "";
+        document.getElementById("form-author").value = "";
+        document.getElementById("form-cover").value = "";
+        document.getElementById("form-genre").value = "";
+        document.getElementById("form-pages").value = "";
+        document.getElementById("form-synopsis").value = "";
+        window.setFormStatus("Quero Ler");
+        
+        // Hide Cover Preview
+        document.getElementById("cover-preview-box").classList.add("hidden");
+
+        const modal = document.getElementById("book-modal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      };
+
+      window.openEditBookModal = function(bookId) {
+        const book = state.books.find((b) => b.id === bookId);
+        if (!book) return;
+        
+        state.editingBook = book;
+        document.getElementById("modal-title").innerText = "Editar Detalhes";
+        document.getElementById("modal-sparkles-badge").classList.add("hidden");
+        document.getElementById("modal-ai-banner").classList.add("hidden");
+        document.getElementById("modal-error-banner").classList.add("hidden");
+
+        // Fill fields
+        document.getElementById("form-title").value = book.title || "";
+        document.getElementById("form-author").value = book.author || "";
+        document.getElementById("form-cover").value = book.coverImage || "";
+        document.getElementById("form-genre").value = book.genre || "";
+        document.getElementById("form-pages").value = book.pages || "";
+        document.getElementById("form-synopsis").value = book.synopsis || "";
+        window.setFormStatus(book.status || "Quero Ler");
+
+        // Handle Cover Preview
+        if (book.coverImage) {
+          window.handleCoverInput(book.coverImage);
         } else {
-          alert('Erro ao processar imagem.');
-          document.getElementById('scanner-loading').classList.add('hidden');
+          document.getElementById("cover-preview-box").classList.add("hidden");
         }
-      } catch (err) {
-        console.error(err);
-        alert('Erro de conexão ao servidor.');
-        document.getElementById('scanner-loading').classList.add('hidden');
+
+        const modal = document.getElementById("book-modal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      };
+
+      window.closeBookModal = function() {
+        const modal = document.getElementById("book-modal");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        state.editingBook = null;
+        
+        if (state.isReviewMode) {
+          // Discard remainder if canceled
+          state.isReviewMode = false;
+          state.reviewQueue = [];
+          renderApp();
+        }
+      };
+
+      window.setFormStatus = function(status) {
+        state.formSelectedStatus = status;
+        ["Quero Ler", "Lendo", "Lido"].forEach((s) => {
+          const btn = document.getElementById(`status-btn-${s.replace(" ", "-")}`);
+          if (s === status) {
+            if (s === "Quero Ler") {
+              btn.className = "py-2 rounded-xl text-xs font-semibold border bg-[#FF9F0A]/10 text-amber-800 border-amber-300 ring-2 ring-amber-500/20";
+            } else if (s === "Lendo") {
+              btn.className = "py-2 rounded-xl text-xs font-semibold border bg-[#7986cb]/10 text-[#7986cb] border-[#b39ddb]/40 ring-2 ring-bento-primary/20";
+            } else {
+              btn.className = "py-2 rounded-xl text-xs font-semibold border bg-emerald-500/10 text-emerald-800 border-[#a5d6a7] ring-2 ring-bento-sage/20";
+            }
+          } else {
+            btn.className = "py-2 rounded-xl text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100";
+          }
+        });
+      };
+
+      window.handleCoverInput = function(value) {
+        const previewBox = document.getElementById("cover-preview-box");
+        const previewImg = document.getElementById("cover-preview-img");
+        const previewUrl = document.getElementById("cover-preview-url");
+        
+        if (value && value.trim().startsWith("http")) {
+          previewImg.src = value.trim();
+          previewUrl.innerText = value.trim();
+          previewBox.classList.remove("hidden");
+        } else {
+          previewBox.classList.add("hidden");
+        }
+      };
+
+      window.triggerCoverFetch = async function() {
+        const titleVal = document.getElementById("form-title").value.trim();
+        const authorVal = document.getElementById("form-author").value.trim();
+        const btn = document.getElementById("btn-fetch-cover");
+        const errorBanner = document.getElementById("modal-error-banner");
+        const errorText = document.getElementById("modal-error-text");
+
+        errorBanner.classList.add("hidden");
+
+        if (!titleVal) {
+          errorText.innerText = "Insira o título do livro para buscar a capa.";
+          errorBanner.classList.remove("hidden");
+          return;
+        }
+
+        btn.innerText = "Buscando...";
+        btn.disabled = true;
+
+        try {
+          const coverUrl = await fetchBookCover(titleVal, authorVal);
+          if (coverUrl) {
+            // Update input box value and preview image so users can see the url and preview!
+            const coverInput = document.getElementById("form-cover");
+            coverInput.value = coverUrl;
+            window.handleCoverInput(coverUrl);
+          } else {
+            errorText.innerText = "Capa não encontrada automaticamente. Você pode colar uma URL manualmente.";
+            errorBanner.classList.remove("hidden");
+          }
+        } catch (err) {
+          errorText.innerText = "Erro ao conectar aos buscadores de capas.";
+          errorBanner.classList.remove("hidden");
+        } finally {
+          btn.innerText = "Buscar Capa";
+          btn.disabled = false;
+        }
+      };
+
+      window.handleBookSubmit = async function(event) {
+        event.preventDefault();
+        const errorBanner = document.getElementById("modal-error-banner");
+        const errorText = document.getElementById("modal-error-text");
+        
+        errorBanner.classList.add("hidden");
+
+        const titleVal = document.getElementById("form-title").value.trim();
+        const authorVal = document.getElementById("form-author").value.trim();
+        const coverVal = document.getElementById("form-cover").value.trim();
+        const genreVal = document.getElementById("form-genre").value.trim();
+        const pagesVal = parseInt(document.getElementById("form-pages").value, 10) || 0;
+        const synopsisVal = document.getElementById("form-synopsis").value.trim();
+
+        if (!titleVal || !authorVal) {
+          errorText.innerText = "Título e autor são obrigatórios.";
+          errorBanner.classList.remove("hidden");
+          return;
+        }
+
+        const cleanData = {
+          title: titleVal,
+          author: authorVal,
+          coverImage: coverVal,
+          genre: genreVal || "Não classificado",
+          pages: pagesVal,
+          synopsis: synopsisVal,
+          status: state.formSelectedStatus
+        };
+
+        try {
+          // Auto-fetch cover if not provided
+          if (!cleanData.coverImage) {
+            const autoCover = await fetchBookCover(cleanData.title, cleanData.author);
+            if (autoCover) cleanData.coverImage = autoCover;
+          }
+
+          if (state.editingBook && state.editingBook.id && !state.editingBook.id.startsWith("local_")) {
+            // Firestore update
+            const bookRef = doc(db, "books", state.editingBook.id);
+            await updateDoc(bookRef, {
+              ...cleanData,
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            // Firestore create
+            await addDoc(collection(db, "books"), {
+              ...cleanData,
+              createdAt: serverTimestamp()
+            });
+          }
+        } catch (err) {
+          console.warn("Firestore save failed, performing local modifications:", err);
+          let updatedList = [...state.books];
+          if (state.editingBook && state.editingBook.id) {
+            updatedList = updatedList.map((b) => b.id === state.editingBook.id ? { ...b, ...cleanData } : b);
+          } else {
+            const newLocal = { ...cleanData, id: `local_${Date.now()}` };
+            updatedList = [newLocal, ...updatedList];
+          }
+          state.books = updatedList;
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(updatedList));
+          renderApp();
+        }
+
+        // Advance or exit review mode
+        if (state.isReviewMode) {
+          state.reviewQueue.shift();
+          if (state.reviewQueue.length > 0) {
+            window.closeBookModal();
+            // Stagger opening next review
+            setTimeout(() => {
+              window.openNextReviewBook();
+            }, 300);
+            return;
+          } else {
+            state.isReviewMode = false;
+          }
+        }
+
+        window.closeBookModal();
+        renderApp();
+      };
+
+      window.deleteBookDoc = async function(bookId) {
+        if (!confirm("Deseja mesmo remover este livro da sua estante?")) return;
+        
+        try {
+          if (bookId.startsWith("local_")) {
+            throw new Error("Local book deletion");
+          }
+          await deleteDoc(doc(db, "books", bookId));
+        } catch (err) {
+          console.warn("Firestore delete failed, updating locally:", err);
+          state.books = state.books.filter((b) => b.id !== bookId);
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          renderApp();
+        }
+      };
+
+      // 9. Camera & Artificial Intelligence Scanner Module
+      let cameraStream = null;
+
+      window.openScannerModal = async function() {
+        const modal = document.getElementById("scanner-modal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        
+        document.getElementById("scanner-error-banner").classList.add("hidden");
+        document.getElementById("scanning-overlay").classList.add("hidden");
+
+        await startCameraStream();
+      };
+
+      window.closeScannerModal = function() {
+        stopCameraStream();
+        const modal = document.getElementById("scanner-modal");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      };
+
+      async function startCameraStream() {
+        stopCameraStream();
+        const video = document.getElementById("scanner-video");
+        const streamContainer = document.getElementById("camera-stream-container");
+        const uploadFallback = document.getElementById("upload-fallback-container");
+        const btnCapture = document.getElementById("btn-capture-frame");
+        const fileTriggerText = document.getElementById("btn-file-trigger-text");
+        const btnFileTrigger = document.getElementById("btn-file-trigger");
+
+        try {
+          const constraints = {
+            video: {
+              facingMode: "environment",
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            }
+          };
+          cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = cameraStream;
+          video.play();
+          
+          streamContainer.classList.remove("hidden");
+          uploadFallback.classList.add("hidden");
+          btnCapture.classList.remove("hidden");
+          
+          btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+          fileTriggerText.innerText = "Enviar Foto";
+        } catch (err) {
+          console.warn("Environmental camera failed, trying default standard constraints...", err);
+          try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = cameraStream;
+            video.play();
+            
+            streamContainer.classList.remove("hidden");
+            uploadFallback.classList.add("hidden");
+            btnCapture.classList.remove("hidden");
+            
+            btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+            fileTriggerText.innerText = "Enviar Foto";
+          } catch (fallbackErr) {
+            console.error("Camera access denied or unavailable:", fallbackErr);
+            streamContainer.classList.add("hidden");
+            uploadFallback.classList.remove("hidden");
+            btnCapture.classList.add("hidden");
+            
+            btnFileTrigger.className = "w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
+            fileTriggerText.innerText = "Tirar Foto ou Escolher Imagem";
+          }
+        }
       }
-    }
 
-    // FLUXO DE REVISÃO DA IA
-    window.startAiReview = function() {
-      if (reviewQueue.length > 0) {
-        showReviewBook(reviewQueue[0]);
-      }
-    };
-
-    function showReviewBook(book) {
-      document.getElementById('form-book-id').value = '';
-      document.getElementById('form-title').value = book.title || '';
-      document.getElementById('form-author').value = book.author || '';
-      document.getElementById('form-cover-url').value = book.coverImage || '';
-      document.getElementById('form-genre').value = book.genre || '';
-      document.getElementById('form-pages').value = book.pages || '';
-      document.getElementById('form-status').value = book.status || 'Quero Ler';
-      document.getElementById('form-synopsis').value = book.synopsis || '';
-
-      if (book.coverImage) {
-        document.getElementById('cover-preview-img').src = book.coverImage;
-        document.getElementById('cover-preview-container').classList.remove('hidden');
-      } else {
-        document.getElementById('cover-preview-container').classList.add('hidden');
+      function stopCameraStream() {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach((track) => track.stop());
+          cameraStream = null;
+        }
+        const video = document.getElementById("scanner-video");
+        if (video) video.srcObject = null;
       }
 
-      document.getElementById('book-modal-title').innerText = `Revisar Livro da IA (${reviewQueue.length} restantes)`;
-      document.getElementById('book-modal').classList.remove('hidden');
-    }
+      window.restartCameraStream = function() {
+        document.getElementById("scanner-error-banner").classList.add("hidden");
+        startCameraStream();
+      };
 
-    function endAiReview() {
-      isReviewMode = false;
-      reviewQueue = [];
-      document.getElementById('review-banner').classList.add('hidden');
-    }
-  </script>
-</body>
+      window.triggerFileInput = function() {
+        document.getElementById("hidden-file-input").click();
+      };
+
+      window.handleFileInputChange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function() {
+          if (typeof reader.result === "string") {
+            processScannedImage(reader.result);
+          }
+        };
+        reader.onerror = function() {
+          showScannerError("Falha ao ler o arquivo de imagem.");
+        };
+        reader.readAsDataURL(file);
+      };
+
+      window.captureCameraImage = function() {
+        const video = document.getElementById("scanner-video");
+        if (!video || !cameraStream) return;
+
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 1280;
+          canvas.height = video.videoHeight || 720;
+
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64Img = canvas.toDataURL("image/jpeg", 0.85);
+            processScannedImage(base64Img);
+          }
+        } catch (err) {
+          console.error("Capture frame error:", err);
+          showScannerError("Não foi possível capturar o frame de vídeo.");
+        }
+      };
+
+      async function processScannedImage(base64Image) {
+        const overlay = document.getElementById("scanning-overlay");
+        const statusText = document.getElementById("scanning-status-text");
+
+        overlay.classList.remove("hidden");
+        statusText.innerText = "Enviando foto para a IA...";
+
+        // Rotating visual statuses
+        const states = [
+          "Analisando lombadas dos livros...",
+          "Identificando títulos e autores...",
+          "Buscando sinopses na internet...",
+          "Organizando dados da estante..."
+        ];
+        let idx = 0;
+        const interval = setInterval(() => {
+          if (idx < states.length) {
+            statusText.innerText = states[idx];
+            idx++;
+          }
+        }, 1500);
+
+        try {
+          const response = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: base64Image })
+          });
+
+          clearInterval(interval);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Não foi possível processar as lombadas.");
+          }
+
+          const data = await response.json();
+          if (data.books && data.books.length > 0) {
+            // Populate and enter Review Mode
+            handleScannedBooksResponse(data.books);
+          } else {
+            throw new Error("Nenhum livro identificado de forma clara. Tente focar mais nas lombadas.");
+          }
+        } catch (err) {
+          console.error(err);
+          showScannerError(err.message || "Falha ao conectar com o servidor da IA.");
+        } finally {
+          clearInterval(interval);
+          overlay.classList.add("hidden");
+        }
+      }
+
+      function showScannerError(msg) {
+        const banner = document.getElementById("scanner-error-banner");
+        const text = document.getElementById("scanner-error-message");
+        text.innerText = msg;
+        banner.classList.remove("hidden");
+      }
+
+      async function handleScannedBooksResponse(booksList) {
+        // Pre-fetch covers for all books in the queue to preview them immediately during review
+        const booksWithCovers = await Promise.all(
+          booksList.map(async (book) => {
+            if (!book.coverImage) {
+              const cover = await fetchBookCover(book.title, book.author);
+              return { ...book, coverImage: cover };
+            }
+            return book;
+          })
+        );
+
+        state.reviewQueue = booksWithCovers;
+        state.isReviewMode = true;
+        
+        window.closeScannerModal();
+        renderApp();
+        
+        // Auto open first book review
+        window.openNextReviewBook();
+      }
+
+      window.openNextReviewBook = function() {
+        if (state.reviewQueue.length === 0) return;
+        
+        const book = state.reviewQueue[0];
+        state.editingBook = book;
+
+        document.getElementById("modal-title").innerText = "Revisar Livro Detectado";
+        document.getElementById("modal-sparkles-badge").classList.remove("hidden");
+        document.getElementById("modal-ai-banner").classList.remove("hidden");
+        document.getElementById("modal-error-banner").classList.add("hidden");
+
+        // Populate fields
+        document.getElementById("form-title").value = book.title || "";
+        document.getElementById("form-author").value = book.author || "";
+        document.getElementById("form-cover").value = book.coverImage || "";
+        document.getElementById("form-genre").value = book.genre || "";
+        document.getElementById("form-pages").value = book.pages || "";
+        document.getElementById("form-synopsis").value = book.synopsis || "";
+        window.setFormStatus(book.status || "Quero Ler");
+
+        // Handle Cover Preview
+        if (book.coverImage) {
+          window.handleCoverInput(book.coverImage);
+        } else {
+          document.getElementById("cover-preview-box").classList.add("hidden");
+        }
+
+        const modal = document.getElementById("book-modal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      };
+
+      // Start everything on page boot
+      initFirestoreSync();
+
+    </script>
+  </body>
 </html>
