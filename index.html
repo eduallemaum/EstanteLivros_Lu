@@ -1,158 +1,108 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Estante Inteligente</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc } from 'firebase/firestore';
 
-    <div class="max-w-4xl mx-auto p-4 sm:p-6">
-        <header class="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
-            <h1 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">📚 Minha Estante</h1>
-            <button id="open-scanner" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg flex items-center gap-2 transition duration-200">
-                ✨ Escanear Lombadas
-            </button>
-        </header>
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: `${process.env.FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+};
 
-        <div id="books-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            </div>
-    </div>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    <div id="scanner-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 rounded-2xl w-full max-w-lg overflow-hidden border border-gray-700 shadow-2xl">
-            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
-                <h3 class="text-lg font-bold text-purple-400 flex items-center gap-2">🔮 Scanner com IA</h3>
-                <button id="close-scanner" class="text-gray-400 hover:text-gray-200 text-2xl">&times;</button>
-            </div>
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '15mb', // Elasticidade máxima permitida pela Vercel no parse do JSON
+    },
+  },
+};
 
-            <div class="p-6 space-y-6">
-                <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-xl p-6 bg-gray-900/50 hover:border-purple-500 transition-colors relative group">
-                    <input type="file" id="file-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                    <div class="text-center space-y-2 pointer-events-none">
-                        <span class="text-4xl">📁</span>
-                        <p class="text-sm font-medium text-gray-300">Escolha uma foto da galeria</p>
-                        <p class="text-xs text-gray-500">Funciona com JPG, PNG ou WEBP</p>
-                    </div>
-                </div>
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Método não permitido' });
+  }
 
-                <p id="file-name" class="text-xs text-center text-purple-300 italic hidden"></p>
+  try {
+    const { imageBase64 } = req.body;
 
-                <div id="scanner-error" class="bg-red-950/50 border border-red-800 text-red-300 p-4 rounded-xl text-xs space-y-1 hidden">
-                    <p class="font-bold">⚠️ Houve um imprevisto:</p>
-                    <p id="scanner-error-message">Não foi possível processar a imagem.</p>
-                </div>
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Nenhuma imagem foi enviada.' });
+    }
 
-                <button id="process-btn" disabled class="w-full bg-purple-600 disabled:bg-gray-700 disabled:text-gray-400 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                    Analisar Imagem com Gemini
-                </button>
-            </div>
-        </div>
-    </div>
+    // Extrai o tipo mime real e limpa o cabeçalho base64 de forma cirúrgica
+    let mimeType = "image/jpeg";
+    const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+    if (mimeMatch) {
+      mimeType = mimeMatch[1];
+    }
+    const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
 
-    <script>
-        const openBtn = document.getElementById('open-scanner');
-        const closeBtn = document.getElementById('close-scanner');
-        const modal = document.getElementById('scanner-modal');
-        const fileInput = document.getElementById('file-input');
-        const fileNameText = document.getElementById('file-name');
-        const processBtn = document.getElementById('process-btn');
-        const errorDiv = document.getElementById('scanner-error');
-        const errorMessage = document.getElementById('scanner-error-message');
+    // Prompt estrito para o Gemini retornar apenas um JSON válido sem blocos de texto
+    const promptText = "Identifique os livros presentes nesta imagem. Retorne estritamente um array JSON seguindo exatamente este modelo: [{\"titulo\": \"Nome do Livro\", \"autor\": \"Autor\", \"synopsis\": \"Breve sinopse\", \"genero\": \"Ficção\", \"numeroPaginas\": 250}]. Não adicione formatações de markdown como ```json.";
 
-        let compressedBase64 = null;
+    const apiKey = process.env.GEMINI_API_KEY;
+    // Usando o modelo estável gemini-1.5-flash com endpoint estável v1
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-        openBtn.addEventListener('click', () => {
-            modal.classList.remove('hidden');
-            resetScanner();
-        });
-
-        closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-
-        // O SEGREDO: Redimensionar e comprimir no Navegador
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            fileNameText.innerText = `Selecionado: ${file.name}`;
-            fileNameText.classList.remove('hidden');
-            errorDiv.classList.add('hidden');
-            processBtn.disabled = true;
-            processBtn.innerText = "Comprimindo imagem...";
-
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = function (event) {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = function () {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    // Reduz para uma largura máxima de 1200px (ideal para o Gemini ler texto)
-                    const MAX_WIDTH = 1200;
-                    if (width > MAX_WIDTH) {
-                        height = Math.round((height * MAX_WIDTH) / width);
-                        width = MAX_WIDTH;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    // Transforma em JPEG super leve (qualidade 0.7)
-                    compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                    
-                    processBtn.disabled = false;
-                    processBtn.innerText = "Analisar Imagem com Gemini";
-                };
-            };
-        });
-
-        processBtn.addEventListener('click', async () => {
-            if (!compressedBase64) return;
-
-            processBtn.disabled = true;
-            processBtn.innerText = "IA pensando... Aguarde 🤖";
-            errorDiv.classList.add('hidden');
-
-            try {
-                const response = await fetch('/api/scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageBase64: compressedBase64 })
-                });
-
-                const result = await response.json();
-
-                if (!response.ok || !result.success) {
-                    throw new Error(result.error || 'Erro interno do servidor.');
-                }
-
-                alert(`Sucesso! ${result.books.length} livro(s) identificado(s) e salvo(s) na sua estante! 🎉`);
-                modal.classList.add('hidden');
-                window.location.reload(); // Recarrega a página para atualizar a lista do banco
-
-            } catch (err) {
-                console.error(err);
-                errorMessage.innerText = "O servidor cortou a resposta ou o Gemini falhou. Verifique as credenciais e logs.";
-                errorDiv.classList.remove('hidden');
-                processBtn.disabled = false;
-                processBtn.innerText = "Tentar Novamente";
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
             }
-        });
+          ]
+        }]
+      })
+    });
 
-        function resetScanner() {
-            compressedBase64 = null;
-            fileInput.value = '';
-            fileNameText.classList.add('hidden');
-            errorDiv.classList.add('hidden');
-            processBtn.disabled = true;
-            processBtn.innerText = "Analisar Imagem com Gemini";
-        }
-    </script>
-</body>
-</html>
+    if (!response.ok) {
+      const errorResponse = await response.text();
+      console.error("Erro retornado pelo Gemini:", errorResponse);
+      return res.status(500).json({ error: `O Gemini rejeitou a imagem (Erro ${response.status}).` });
+    }
+
+    const data = await response.json();
+    let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!responseText) {
+      return res.status(500).json({ error: 'A inteligência artificial não gerou uma resposta válida.' });
+    }
+
+    // Limpeza de segurança contra quebras de JSON com Markdown
+    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    const booksDetected = JSON.parse(responseText);
+    const booksArray = Array.isArray(booksDetected) ? booksDetected : [booksDetected];
+    const booksCollection = collection(db, 'books');
+    const addedBooks = [];
+
+    for (const book of booksArray) {
+      const docRef = await addDoc(booksCollection, {
+        title: book.titulo || 'Título Desconhecido',
+        author: book.autor || 'Autor Desconhecido',
+        synopsis: book.synopsis || '',
+        genre: book.genero || 'Geral',
+        pages: book.numeroPaginas ? Number(book.numeroPaginas) : 0,
+        status: 'Quero Ler',
+        coverUrl: '',
+        createdAt: new Date().toISOString()
+      });
+      addedBooks.push({ id: docRef.id, ...book });
+    }
+
+    return res.status(200).json({ success: true, books: addedBooks });
+
+  } catch (error) {
+    console.error('Erro no Handler:', error);
+    return res.status(500).json({ error: 'Falha crítica ao processar e salvar no banco.' });
+  }
+}
