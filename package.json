@@ -1,0 +1,9 @@
+{
+  "name": "estante-livros-lu",
+  "version": "1.0.0",
+  "description": "Estante de Livros com Inteligência Artificial",
+  "main": "api/scan.js",
+  "dependencies": {
+    "firebase": "^10.0.0"
+  }
+}
