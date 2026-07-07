@@ -1,23 +1,40 @@
+import express from "express";
+import path from "path";
+import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import dotenv from "dotenv";
 
-export default async function handler(req, res) {
-  // Set CORS headers for Vercel serverless environment
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
-  );
+dotenv.config();
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+const app = express();
+const PORT = 3000;
+
+// Set payload limits to handle high-resolution image base64 uploads
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+let aiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!aiClient) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new Error("A variável de ambiente GEMINI_API_KEY não está configurada. Por favor, adicione seu chave da API Gemini nas configurações do AI Studio.");
+    }
+    aiClient = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
   }
+  return aiClient;
+}
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed. Use POST." });
-  }
-
+// API to scan books using Gemini 2.5 Flash (via 'gemini-3.5-flash' alias as per guidelines)
+app.post("/api/scan", async (req, res) => {
   try {
     const { image, mimeType = "image/jpeg" } = req.body;
 
@@ -27,15 +44,8 @@ export default async function handler(req, res) {
 
     // Extract raw base64 data if it contains the data:image prefix
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-    const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "A variável de ambiente GEMINI_API_KEY não está configurada no servidor Vercel."
-      });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    const client = getGeminiClient();
 
     const imagePart = {
       inlineData: {
@@ -55,7 +65,7 @@ Identifique todos os livros físicos visíveis na imagem de forma precisa. Para 
 
 Retorne obrigatoriamente uma lista de livros estruturada em JSON contendo esses campos de acordo com o esquema fornecido.`;
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: "gemini-3.5-flash",
       contents: [
         imagePart,
@@ -88,11 +98,34 @@ Retorne obrigatoriamente uma lista de livros estruturada em JSON contendo esses 
     }
 
     const books = JSON.parse(textOutput.trim());
-    return res.status(200).json({ books });
-  } catch (error) {
-    console.error("Erro ao analisar lombadas na Vercel:", error);
+    return res.json({ books });
+  } catch (error: any) {
+    console.error("Erro ao analisar lombadas:", error);
     return res.status(500).json({
       error: error.message || "Ocorreu um erro interno ao processar a imagem do livro."
     });
   }
+});
+
+// Setup Vite middleware for development or serve built files in production
+async function setupServer() {
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Servidor rodando em http://localhost:${PORT}`);
+  });
 }
+
+setupServer();

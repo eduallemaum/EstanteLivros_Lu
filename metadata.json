@@ -1,0 +1,8 @@
+{
+  "name": "Estante da Lu",
+  "description": "Uma biblioteca pessoal inteligente e moderna para a Lu organizar seus livros com escaneamento de lombadas via câmera e IA.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
