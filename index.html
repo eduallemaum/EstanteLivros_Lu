@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Estante da Lu 🐱 - Biblioteca Pessoal</title>
-
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,400&display=swap" rel="stylesheet" />
-
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -77,7 +77,7 @@
             </p>
           </div>
         </div>
-
+        
         <!-- Mobile Add Button -->
         <button
           onclick="openAddBookModal()"
@@ -153,7 +153,7 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col gap-6 min-w-0">
-
+      
       <!-- Header & Search -->
       <header class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-between">
         <div class="relative flex-1 max-w-xl">
@@ -185,7 +185,7 @@
 
       <!-- Bento Grid Layout -->
       <div class="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1">
-
+        
         <!-- Minha Estante Box -->
         <section class="md:col-span-8 md:row-span-4 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col border border-slate-100">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -298,7 +298,7 @@
               Use a câmera inteligente integrada para identificar lombadas e catalogar livros na estante de forma totalmente automatizada.
             </p>
           </div>
-
+          
           <button
             onclick="openScannerModal()"
             class="z-10 bg-[#7986cb] hover:bg-[#7986cb]/95 text-white px-6 md:px-8 py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-[#7986cb]/20 flex items-center gap-2.5 active:scale-95 transition-all"
@@ -306,7 +306,7 @@
             <i data-lucide="camera" class="w-4 h-4"></i>
             Escanear Livro com IA
           </button>
-
+          
           <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-[#7986cb]/10 rounded-full"></div>
           <div class="absolute top-5 right-20 w-12 h-12 bg-white/40 rounded-full"></div>
         </section>
@@ -343,7 +343,7 @@
     <!-- BOOK MODAL -->
     <div id="book-modal" class="fixed inset-0 z-50 items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity hidden">
       <div class="bg-white w-full sm:max-w-md md:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
-
+        
         <!-- Header -->
         <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div class="flex items-center gap-2">
@@ -359,7 +359,7 @@
 
         <!-- Form Content -->
         <form onsubmit="handleBookSubmit(event)" class="flex-1 overflow-y-auto p-5 space-y-4">
-
+          
           <div id="modal-ai-banner" class="bg-amber-50/70 border border-amber-100 p-3 rounded-2xl flex gap-2 items-start text-xs text-amber-800 hidden">
             <i data-lucide="sparkles" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
             <div>
@@ -414,7 +414,7 @@
                 Buscar Capa
               </button>
             </div>
-
+            
             <!-- Cover Preview -->
             <div id="cover-preview-box" class="mt-3 flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 hidden">
               <div class="w-12 h-16 rounded-md shadow-sm overflow-hidden bg-white shrink-0 border border-slate-200">
@@ -513,7 +513,7 @@
     <!-- SCANNER MODAL -->
     <div id="scanner-modal" class="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md hidden">
       <div class="relative bg-slate-900 w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[90vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white">
-
+        
         <!-- Header -->
         <div class="p-5 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 backdrop-blur z-10">
           <div class="flex items-center gap-2">
@@ -547,7 +547,7 @@
 
         <!-- Camera Area / File Upload Area -->
         <div class="flex-1 relative bg-black flex flex-col justify-center items-center min-h-[50vh] max-h-[70vh]">
-
+          
           <!-- AI Scanning Spinner Overlay -->
           <div id="scanning-overlay" class="absolute inset-0 bg-slate-950/90 z-20 flex flex-col items-center justify-center p-6 text-center hidden">
             <div class="relative mb-6">
@@ -576,7 +576,7 @@
           <!-- Video Camera Stream Container -->
           <div id="camera-stream-container" class="relative w-full h-full flex justify-center items-center overflow-hidden hidden">
             <video id="scanner-video" autoplay playsinline class="w-full h-full object-cover min-h-[50vh]"></video>
-
+            
             <!-- Neon Laser Scanner Overlays -->
             <div class="absolute inset-0 border-[30px] border-black/40 pointer-events-none flex items-center justify-center">
               <div class="relative w-full max-w-[280px] h-[340px] border-2 border-[#7986cb] rounded-2xl shadow-[0_0_15px_rgba(121,134,203,0.3)]">
@@ -593,18 +593,13 @@
             </div>
           </div>
 
-          <!-- Upload Fallback Container -->
-          <div id="upload-fallback-container" class="p-8 text-center flex flex-col items-center max-w-sm">
           <!-- Upload Fallback Container (when camera permissions fail) -->
           <div id="upload-fallback-container" class="p-8 text-center flex flex-col items-center max-w-sm hidden">
             <div class="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center text-slate-400 mb-4 border border-slate-700 shadow-inner">
-              <i data-lucide="camera" class="w-8 h-8"></i>
               <i data-lucide="camera-off" class="w-8 h-8"></i>
             </div>
-            <h3 class="font-bold text-lg text-slate-200 mb-1">Permissão da Câmera</h3>
             <h3 class="font-bold text-lg text-slate-200 mb-1">Câmera Indisponível</h3>
             <p class="text-slate-400 text-sm mb-6 leading-relaxed">
-              Tire uma foto na hora com o celular ou escolha uma imagem salva de sua prateleira para que nossa IA analise.
               Não conseguimos acessar sua câmera em tempo real. Sem problemas! Você pode escolher uma imagem salva de sua prateleira para analisar.
             </p>
             <button
@@ -669,7 +664,6 @@
             id="hidden-file-input"
             type="file"
             accept="image/*"
-            capture="environment"
             onchange="handleFileInputChange(event)"
             class="hidden"
           />
@@ -803,7 +797,7 @@
       // 4. Robust Intelligent Cover Fetching (Google Books + Open Library fallbacks)
       async function fetchBookCover(title, author) {
         if (!title) return "";
-
+        
         // Step 1: Try Google Books API
         try {
           const queryStr = encodeURIComponent(`intitle:${title.trim()}${author ? ` inauthor:${author.trim()}` : ""}`);
@@ -899,7 +893,7 @@
         const shimmer = document.getElementById("loading-shimmer");
         const emptyState = document.getElementById("empty-state");
         const emptyStateText = document.getElementById("empty-state-text");
-
+        
         // Hide/Show Loading state
         if (state.loading) {
           shimmer.classList.remove("hidden");
@@ -942,7 +936,7 @@
           const isExpanded = state.expandedBookIds[book.id] || false;
           const hashVal = getHash(book.title);
           const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
-
+          
           // Render Cover HTML
           let coverHTML = "";
           if (book.coverImage && book.coverImage.startsWith("http")) {
@@ -987,7 +981,6 @@
             `;
           }
 
-          // Status Badge Markup
           // Status Badge Badge Markup
           let statusBadge = "";
           if (book.status === "Lendo") {
@@ -1133,7 +1126,7 @@
       // 7. Event listeners & State Modifiers
       window.filterStatus = function(status) {
         state.selectedStatus = status;
-
+        
         // Toggle selected styling on Navigation
         ["Todos", "Lendo", "Lido"].forEach((s) => {
           const btn = document.getElementById(`nav-btn-${s}`);
@@ -1195,7 +1188,7 @@
         document.getElementById("form-pages").value = "";
         document.getElementById("form-synopsis").value = "";
         window.setFormStatus("Quero Ler");
-
+        
         // Hide Cover Preview
         document.getElementById("cover-preview-box").classList.add("hidden");
 
@@ -1207,7 +1200,7 @@
       window.openEditBookModal = function(bookId) {
         const book = state.books.find((b) => b.id === bookId);
         if (!book) return;
-
+        
         state.editingBook = book;
         document.getElementById("modal-title").innerText = "Editar Detalhes";
         document.getElementById("modal-sparkles-badge").classList.add("hidden");
@@ -1240,7 +1233,7 @@
         modal.classList.add("hidden");
         modal.classList.remove("flex");
         state.editingBook = null;
-
+        
         if (state.isReviewMode) {
           // Discard remainder if canceled
           state.isReviewMode = false;
@@ -1271,7 +1264,7 @@
         const previewBox = document.getElementById("cover-preview-box");
         const previewImg = document.getElementById("cover-preview-img");
         const previewUrl = document.getElementById("cover-preview-url");
-
+        
         if (value && value.trim().startsWith("http")) {
           previewImg.src = value.trim();
           previewUrl.innerText = value.trim();
@@ -1323,7 +1316,7 @@
         event.preventDefault();
         const errorBanner = document.getElementById("modal-error-banner");
         const errorText = document.getElementById("modal-error-text");
-
+        
         errorBanner.classList.add("hidden");
 
         const titleVal = document.getElementById("form-title").value.trim();
@@ -1405,7 +1398,7 @@
 
       window.deleteBookDoc = async function(bookId) {
         if (!confirm("Deseja mesmo remover este livro da sua estante?")) return;
-
+        
         try {
           if (bookId.startsWith("local_")) {
             throw new Error("Local book deletion");
@@ -1426,11 +1419,10 @@
         const modal = document.getElementById("scanner-modal");
         modal.classList.remove("hidden");
         modal.classList.add("flex");
-
+        
         document.getElementById("scanner-error-banner").classList.add("hidden");
         document.getElementById("scanning-overlay").classList.add("hidden");
 
-        await startCameraStream();
         // Open camera tab by default on open
         window.switchScannerTab("camera");
       };
@@ -1502,13 +1494,11 @@
           cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
           video.srcObject = cameraStream;
           video.play();
-
+          
           streamContainer.classList.remove("hidden");
           uploadFallback.classList.add("hidden");
           btnCapture.classList.remove("hidden");
-
-          btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
-          fileTriggerText.innerText = "Enviar Foto";
+          
           if (btnFileTrigger) {
             btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
           }
@@ -1521,13 +1511,11 @@
             cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = cameraStream;
             video.play();
-
+            
             streamContainer.classList.remove("hidden");
             uploadFallback.classList.add("hidden");
             btnCapture.classList.remove("hidden");
-
-            btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
-            fileTriggerText.innerText = "Enviar Foto";
+            
             if (btnFileTrigger) {
               btnFileTrigger.className = "flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
             }
@@ -1539,9 +1527,7 @@
             streamContainer.classList.add("hidden");
             uploadFallback.classList.remove("hidden");
             btnCapture.classList.add("hidden");
-
-            btnFileTrigger.className = "w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
-            fileTriggerText.innerText = "Tirar Foto ou Escolher Imagem";
+            
             if (btnFileTrigger) {
               btnFileTrigger.className = "w-full bg-[#7986cb] hover:bg-[#7986cb]/90 text-white shadow-lg shadow-[#7986cb]/20 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2";
             }
@@ -1567,7 +1553,6 @@
       };
 
       window.triggerFileInput = function() {
-        document.getElementById("hidden-file-input").click();
         const fileInput = document.getElementById("scanner-file-input") || document.getElementById("hidden-file-input");
         if (fileInput) fileInput.click();
       };
@@ -1640,9 +1625,6 @@
 
           clearInterval(interval);
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Não foi possível processar as lombadas.");
           // Check if response status is different from 200
           if (response.status !== 200) {
             throw new Error("Erro na comunicação com a IA. Verifique se a sua GEMINI_API_KEY está configurada nas variáveis de ambiente da Vercel.");
@@ -1656,8 +1638,6 @@
             throw new Error("Erro na comunicação com a IA. Verifique se a sua GEMINI_API_KEY está configurada nas variáveis de ambiente da Vercel.");
           }
 
-          const data = await response.json();
-          if (data.books && data.books.length > 0) {
           if (data && data.books && data.books.length > 0) {
             // Populate and enter Review Mode
             handleScannedBooksResponse(data.books);
@@ -1668,7 +1648,6 @@
           }
         } catch (err) {
           console.error(err);
-          showScannerError(err.message || "Falha ao conectar com o servidor da IA.");
           let friendlyMsg = err.message;
           // Capture other typical fetch errors/failures and translate gracefully
           if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError") || err.message.includes("Unexpected token")) {
@@ -1702,17 +1681,17 @@
 
         state.reviewQueue = booksWithCovers;
         state.isReviewMode = true;
-
+        
         window.closeScannerModal();
         renderApp();
-
+        
         // Auto open first book review
         window.openNextReviewBook();
       }
 
       window.openNextReviewBook = function() {
         if (state.reviewQueue.length === 0) return;
-
+        
         const book = state.reviewQueue[0];
         state.editingBook = book;
 
