@@ -54,16 +54,22 @@ app.post("/api/scan", async (req, res) => {
       },
     };
 
-    const promptText = `Analise a imagem da prateleira de livros ou das lombadas fornecidas.
-Identifique todos os livros físicos visíveis na imagem de forma precisa. Para cada livro identificado, forneça as seguintes informações em português brasileiro:
-1. Título do livro (título oficial)
+    const promptText = `Analise a imagem fornecida (que pode conter a capa, a lombada, ou a contracapa com código de barras/ISBN de um único livro físico).
+Identifique exatamente UM único livro físico presente na imagem de forma extremamente precisa.
+Por favor, siga estas prioridades:
+1. Tente encontrar um código de barras ou o número ISBN impresso (geralmente de 10 ou 13 dígitos, na contracapa, nas primeiras páginas ou próximo ao código de barras). Se encontrar o ISBN, use-o para buscar e identificar o livro com precisão absoluta.
+2. Se nenhum ISBN ou código de barras estiver visível, analise a capa ou a lombada para identificar o livro (título e autor).
+
+Para o livro identificado, forneça as seguintes informações em português brasileiro:
+1. Título do livro (título oficial da edição brasileira)
 2. Autor ou autores do livro
 3. Gênero literário correspondente (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.)
 4. Número aproximado ou exato de páginas (seja razoável)
 5. Uma sinopse breve, interessante, calorosa e envolvente do livro em português.
 6. Status sugerido de leitura do livro ("Quero Ler").
+7. Código ISBN identificado (com 10 ou 13 dígitos, apenas números, sem traços ou espaços). Se nenhum for encontrado, deixe este campo vazio.
 
-Retorne obrigatoriamente uma lista de livros estruturada em JSON contendo esses campos de acordo com o esquema fornecido.`;
+Retorne obrigatoriamente uma lista contendo exatamente este único livro estruturado em JSON de acordo com o esquema fornecido.`;
 
     const response = await client.models.generateContent({
       model: "gemini-3.5-flash",
@@ -75,7 +81,7 @@ Retorne obrigatoriamente uma lista de livros estruturada em JSON contendo esses 
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
-          description: "Lista de livros identificados com seus respectivos metadados.",
+          description: "Lista contendo exatamente um único livro identificado com seus respectivos metadados.",
           items: {
             type: Type.OBJECT,
             properties: {
@@ -84,9 +90,10 @@ Retorne obrigatoriamente uma lista de livros estruturada em JSON contendo esses 
               genre: { type: Type.STRING, description: "Gênero literário predominante" },
               pages: { type: Type.INTEGER, description: "Número total aproximado de páginas" },
               synopsis: { type: Type.STRING, description: "Breve sinopse instigante em português" },
-              status: { type: Type.STRING, description: "Status de leitura padrão, ex: 'Quero Ler'" }
+              status: { type: Type.STRING, description: "Status de leitura padrão, ex: 'Quero Ler'" },
+              isbn: { type: Type.STRING, description: "Código ISBN de 10 ou 13 dígitos numéricos identificado, ou string vazia se não encontrado" }
             },
-            required: ["title", "author", "genre", "pages", "synopsis", "status"]
+            required: ["title", "author", "genre", "pages", "synopsis", "status", "isbn"]
           }
         }
       }
