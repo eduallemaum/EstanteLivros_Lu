@@ -689,6 +689,51 @@
             </div>
           </div>
 
+          <!-- Interactive Crop Container -->
+          <div id="scanner-crop-container" class="absolute inset-0 bg-slate-950 z-20 flex flex-col justify-between p-4 hidden">
+            <div class="text-center mb-2">
+              <h4 class="text-sm font-bold text-slate-200">Ajustar Enquadramento</h4>
+              <p class="text-[10px] text-slate-400">Arraste as bordas para focar na lombada ou capa que deseja identificar</p>
+            </div>
+            <div class="relative flex-1 flex items-center justify-center w-full overflow-hidden bg-slate-900 rounded-2xl border border-slate-800">
+              <canvas id="crop-canvas" class="max-w-full max-h-[40vh] cursor-move touch-none"></canvas>
+              
+              <!-- Floating zoom controls with design polish -->
+              <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800 flex items-center gap-2.5 z-10 shadow-lg shadow-black/45">
+                <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest select-none">Zoom:</span>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="setCropZoom(1.0)" id="zoom-btn-1" class="px-2.5 py-0.5 rounded-md text-[10px] font-black transition-all bg-[#7986cb] text-white ring-1 ring-white/20">1x</button>
+                  <button type="button" onclick="setCropZoom(1.5)" id="zoom-btn-1-5" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200">1.5x</button>
+                  <button type="button" onclick="setCropZoom(2.0)" id="zoom-btn-2" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200">2x</button>
+                  <button type="button" onclick="setCropZoom(3.0)" id="zoom-btn-3" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200">3x</button>
+                </div>
+              </div>
+            </div>
+            <div class="w-full flex gap-2 mt-3 shrink-0">
+              <button
+                type="button"
+                onclick="cancelCrop()"
+                class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onclick="useFullImage()"
+                class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition-all"
+              >
+                Foto Inteira
+              </button>
+              <button
+                type="button"
+                onclick="confirmCropAndScan()"
+                class="flex-[2] py-2.5 bg-[#7986cb] hover:bg-[#7986cb]/90 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-[#7986cb]/20 flex items-center justify-center gap-1"
+              >
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Escanear Área
+              </button>
+            </div>
+          </div>
+
         </div>
 
         <!-- Footer -->
@@ -1859,6 +1904,20 @@
         if (fileInput) fileInput.click();
       };
 
+      // Crop Tool State
+      let cropImageSource = null; // Image object
+      let cropImageBase64 = null; // Original base64
+      let cropCanvas = null;
+      let cropCtx = null;
+      let cropBoxOriginal = { x: 0, y: 0, w: 0, h: 0 }; // Box in original image pixels
+      let cropZoom = 1.0; // Current zoom factor (1.0 to 3.0)
+      let cropViewport = { x: 0, y: 0, w: 0, h: 0 }; // Current viewport on the original image
+      let isCropDragging = false;
+      let activeCropHandle = null;
+      let cropDragStart = { x: 0, y: 0 };
+      let cropBoxStart = { x: 0, y: 0, w: 0, h: 0 }; // Holds starting cropBoxOriginal before dragging
+      let lastPointerPos = { x: 0, y: 0 };
+
       window.handleFileInputChange = function(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -1884,10 +1943,10 @@
               const ctx = canvas.getContext("2d");
               if (ctx) {
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
-                processScannedImage(compressedBase64);
+                const compressedBase64 = canvas.toDataURL("image/jpeg", 0.75);
+                window.openCropTool(compressedBase64);
               } else {
-                processScannedImage(reader.result);
+                window.openCropTool(reader.result);
               }
             };
             img.onerror = function() {
@@ -1915,11 +1974,502 @@
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const base64Img = canvas.toDataURL("image/jpeg", 0.85);
-            processScannedImage(base64Img);
+            
+            // Stop camera stream since we are editing/cropping
+            stopCameraStream();
+            const cameraStreamContainer = document.getElementById("camera-stream-container");
+            if (cameraStreamContainer) cameraStreamContainer.classList.add("hidden");
+            const btnCapture = document.getElementById("btn-capture-frame");
+            if (btnCapture) btnCapture.classList.add("hidden");
+
+            window.openCropTool(base64Img);
           }
         } catch (err) {
           console.error("Capture frame error:", err);
           showScannerError("Não foi possível capturar o frame de vídeo.");
+        }
+      };
+
+      window.openCropTool = function(base64Src) {
+        cropImageBase64 = base64Src;
+        const cropContainer = document.getElementById("scanner-crop-container");
+        if (!cropContainer) return;
+
+        cropContainer.classList.remove("hidden");
+
+        const img = new Image();
+        img.onload = function() {
+          cropImageSource = img;
+          cropZoom = 1.0; // Reset zoom to 1x
+          setupCropCanvas();
+        };
+        img.onerror = function() {
+          showScannerError("Falha ao carregar imagem no editor de recorte.");
+          cropContainer.classList.add("hidden");
+        };
+        img.src = base64Src;
+      };
+
+      function mapOriginalToCanvas(ox, oy) {
+        if (!cropCanvas || !cropViewport.w || !cropViewport.h) return { x: 0, y: 0 };
+        const cx = (ox - cropViewport.x) * (cropCanvas.width / cropViewport.w);
+        const cy = (oy - cropViewport.y) * (cropCanvas.height / cropViewport.h);
+        return { x: cx, y: cy };
+      }
+
+      function mapCanvasToOriginal(cx, cy) {
+        if (!cropCanvas || !cropViewport.w || !cropViewport.h) return { x: 0, y: 0 };
+        const ox = cropViewport.x + cx * (cropViewport.w / cropCanvas.width);
+        const oy = cropViewport.y + cy * (cropViewport.h / cropCanvas.height);
+        return { x: ox, y: oy };
+      }
+
+      window.setCropZoom = function(newZoom) {
+        if (!cropImageSource) return;
+        cropZoom = newZoom;
+
+        // Center the viewport on the current selection's center
+        const vw = cropImageSource.width / cropZoom;
+        const vh = cropImageSource.height / cropZoom;
+
+        const cx = cropBoxOriginal.x + cropBoxOriginal.w / 2;
+        const cy = cropBoxOriginal.y + cropBoxOriginal.h / 2;
+
+        let vx = cx - vw / 2;
+        let vy = cy - vh / 2;
+
+        vx = Math.max(0, Math.min(cropImageSource.width - vw, vx));
+        vy = Math.max(0, Math.min(cropImageSource.height - vh, vy));
+
+        cropViewport = { x: vx, y: vy, w: vw, h: vh };
+
+        // Update active buttons styling in UI
+        const zoomBtns = {
+          "1.0": "zoom-btn-1",
+          "1.5": "zoom-btn-1-5",
+          "2.0": "zoom-btn-2",
+          "3.0": "zoom-btn-3"
+        };
+
+        for (const [zVal, btnId] of Object.entries(zoomBtns)) {
+          const btn = document.getElementById(btnId);
+          if (btn) {
+            if (parseFloat(zVal) === newZoom) {
+              btn.className = "px-2.5 py-0.5 rounded-md text-[10px] font-black transition-all bg-[#7986cb] text-white ring-1 ring-white/20";
+            } else {
+              btn.className = "px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200";
+            }
+          }
+        }
+
+        drawCropCanvas();
+      };
+
+      function setupCropCanvas() {
+        cropCanvas = document.getElementById("crop-canvas");
+        if (!cropCanvas || !cropImageSource) return;
+
+        cropCtx = cropCanvas.getContext("2d");
+        if (!cropCtx) return;
+
+        const modalBody = cropCanvas.parentElement;
+        const maxW = modalBody ? Math.min(modalBody.clientWidth - 16, 440) : 380;
+        const maxH = 280;
+
+        let renderW = cropImageSource.width;
+        let renderH = cropImageSource.height;
+
+        const scale = Math.min(maxW / renderW, maxH / renderH);
+        renderW = Math.round(renderW * scale);
+        renderH = Math.round(renderH * scale);
+
+        cropCanvas.width = renderW;
+        cropCanvas.height = renderH;
+
+        // Reset to original-space 70% selection box
+        const boxW = Math.round(cropImageSource.width * 0.7);
+        const boxH = Math.round(cropImageSource.height * 0.7);
+        cropBoxOriginal = {
+          x: Math.round((cropImageSource.width - boxW) / 2),
+          y: Math.round((cropImageSource.height - boxH) / 2),
+          w: boxW,
+          h: boxH
+        };
+
+        // Reset viewport to fill full original image
+        cropViewport = {
+          x: 0,
+          y: 0,
+          w: cropImageSource.width,
+          h: cropImageSource.height
+        };
+
+        // Reset UI Buttons
+        const zoomBtns = ["zoom-btn-1", "zoom-btn-1-5", "zoom-btn-2", "zoom-btn-3"];
+        zoomBtns.forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) {
+            if (id === "zoom-btn-1") {
+              btn.className = "px-2.5 py-0.5 rounded-md text-[10px] font-black transition-all bg-[#7986cb] text-white ring-1 ring-white/20";
+            } else {
+              btn.className = "px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200";
+            }
+          }
+        });
+
+        if (!cropCanvas.dataset.listenersBound) {
+          cropCanvas.addEventListener("pointerdown", handleCropPointerDown);
+          cropCanvas.addEventListener("pointermove", handleCropPointerMove);
+          cropCanvas.addEventListener("pointerup", handleCropPointerUp);
+          cropCanvas.addEventListener("pointercancel", handleCropPointerUp);
+          cropCanvas.dataset.listenersBound = "true";
+        }
+
+        drawCropCanvas();
+
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      }
+
+      function drawCropCanvas() {
+        if (!cropCanvas || !cropCtx || !cropImageSource) return;
+
+        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+
+        // 1. Draw the viewport portion of original image onto full canvas
+        cropCtx.drawImage(
+          cropImageSource,
+          cropViewport.x,
+          cropViewport.y,
+          cropViewport.w,
+          cropViewport.h,
+          0,
+          0,
+          cropCanvas.width,
+          cropCanvas.height
+        );
+
+        // 2. Draw dark semi-transparent overlay
+        cropCtx.fillStyle = "rgba(0, 0, 0, 0.65)";
+        cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+
+        // 3. Map cropBoxOriginal coordinates to current canvas-space coordinates
+        const tl = mapOriginalToCanvas(cropBoxOriginal.x, cropBoxOriginal.y);
+        const br = mapOriginalToCanvas(cropBoxOriginal.x + cropBoxOriginal.w, cropBoxOriginal.y + cropBoxOriginal.h);
+
+        const boxX = tl.x;
+        const boxY = tl.y;
+        const boxW = br.x - tl.x;
+        const boxH = br.y - tl.y;
+
+        // 4. Draw fully lit highlighted portion of original image inside selection box
+        cropCtx.drawImage(
+          cropImageSource,
+          cropBoxOriginal.x,
+          cropBoxOriginal.y,
+          cropBoxOriginal.w,
+          cropBoxOriginal.h,
+          boxX,
+          boxY,
+          boxW,
+          boxH
+        );
+
+        // 5. Draw dashed border around selection on canvas
+        cropCtx.strokeStyle = "#b39ddb";
+        cropCtx.lineWidth = 2;
+        cropCtx.setLineDash([4, 4]);
+        cropCtx.strokeRect(boxX, boxY, boxW, boxH);
+        cropCtx.setLineDash([]); // Reset line dash
+
+        // 6. Draw handles at 4 corners
+        const handles = {
+          tl: { x: boxX, y: boxY },
+          tr: { x: boxX + boxW, y: boxY },
+          bl: { x: boxX, y: boxY + boxH },
+          br: { x: boxX + boxW, y: boxY + boxH }
+        };
+
+        cropCtx.fillStyle = "#7986cb";
+        cropCtx.strokeStyle = "#ffffff";
+        cropCtx.lineWidth = 1.5;
+        for (const h of Object.values(handles)) {
+          cropCtx.beginPath();
+          cropCtx.arc(h.x, h.y, 8, 0, 2 * Math.PI); // Enlarged 8px for tactile precision
+          cropCtx.fill();
+          cropCtx.stroke();
+        }
+
+        // 7. PRECISION MAGNIFYING GLASS (Lupa)
+        if (isCropDragging && activeCropHandle) {
+          let targetX = lastPointerPos.x;
+          let targetY = lastPointerPos.y;
+
+          // If dragging a corner handle, align magnifying loupe center precisely with that handle
+          if (activeCropHandle === "tl") { targetX = boxX; targetY = boxY; }
+          else if (activeCropHandle === "tr") { targetX = boxX + boxW; targetY = boxY; }
+          else if (activeCropHandle === "bl") { targetX = boxX; targetY = boxY + boxH; }
+          else if (activeCropHandle === "br") { targetX = boxX + boxW; targetY = boxY + boxH; }
+
+          const origPos = mapCanvasToOriginal(targetX, targetY);
+
+          const loupeRadius = 50; // High clarity radius
+          const loupeZoom = 3.0;  // 3x magnification for thin spines!
+
+          // Position loupe hovering above target
+          let loupeX = targetX;
+          let loupeY = targetY - 70;
+
+          // Flip to bottom if too close to the top edge of canvas
+          if (loupeY - loupeRadius < 5) {
+            loupeY = targetY + 70;
+          }
+          // Clamp within canvas boundaries with padding
+          loupeX = Math.max(loupeRadius + 5, Math.min(cropCanvas.width - loupeRadius - 5, loupeX));
+          loupeY = Math.max(loupeRadius + 5, Math.min(cropCanvas.height - loupeRadius - 5, loupeY));
+
+          cropCtx.save();
+          cropCtx.beginPath();
+          cropCtx.arc(loupeX, loupeY, loupeRadius, 0, 2 * Math.PI);
+          cropCtx.closePath();
+          cropCtx.clip();
+
+          // Draw the magnified original image section
+          const sw = (loupeRadius * 2) / loupeZoom;
+          const sh = (loupeRadius * 2) / loupeZoom;
+
+          cropCtx.drawImage(
+            cropImageSource,
+            origPos.x - sw / 2,
+            origPos.y - sh / 2,
+            sw,
+            sh,
+            loupeX - loupeRadius,
+            loupeY - loupeRadius,
+            loupeRadius * 2,
+            loupeRadius * 2
+          );
+
+          cropCtx.restore();
+
+          // Draw high contrast outer rings
+          cropCtx.strokeStyle = "#ffffff";
+          cropCtx.lineWidth = 3;
+          cropCtx.beginPath();
+          cropCtx.arc(loupeX, loupeY, loupeRadius, 0, 2 * Math.PI);
+          cropCtx.stroke();
+
+          cropCtx.strokeStyle = "#7986cb";
+          cropCtx.lineWidth = 1.5;
+          cropCtx.beginPath();
+          cropCtx.arc(loupeX, loupeY, loupeRadius, 0, 2 * Math.PI);
+          cropCtx.stroke();
+
+          // Central crosshair for pixel-perfect placement
+          cropCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+          cropCtx.lineWidth = 1.2;
+          cropCtx.beginPath();
+          cropCtx.moveTo(loupeX - 8, loupeY);
+          cropCtx.lineTo(loupeX + 8, loupeY);
+          cropCtx.moveTo(loupeX, loupeY - 8);
+          cropCtx.lineTo(loupeX, loupeY + 8);
+          cropCtx.stroke();
+        }
+      }
+
+      function getCropHandles() {
+        // Map original-space selection to canvas coordinates
+        const tl = mapOriginalToCanvas(cropBoxOriginal.x, cropBoxOriginal.y);
+        const br = mapOriginalToCanvas(cropBoxOriginal.x + cropBoxOriginal.w, cropBoxOriginal.y + cropBoxOriginal.h);
+        const boxX = tl.x;
+        const boxY = tl.y;
+        const boxW = br.x - tl.x;
+        const boxH = br.y - tl.y;
+
+        return {
+          tl: { x: boxX, y: boxY },
+          tr: { x: boxX + boxW, y: boxY },
+          bl: { x: boxX, y: boxY + boxH },
+          br: { x: boxX + boxW, y: boxY + boxH }
+        };
+      }
+
+      function handleCropPointerDown(e) {
+        if (!cropCanvas) return;
+        const rect = cropCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        lastPointerPos = { x, y };
+
+        const tl = mapOriginalToCanvas(cropBoxOriginal.x, cropBoxOriginal.y);
+        const br = mapOriginalToCanvas(cropBoxOriginal.x + cropBoxOriginal.w, cropBoxOriginal.y + cropBoxOriginal.h);
+        const boxX = tl.x;
+        const boxY = tl.y;
+        const boxW = br.x - tl.x;
+        const boxH = br.y - tl.y;
+
+        const handles = {
+          tl: { x: boxX, y: boxY },
+          tr: { x: boxX + boxW, y: boxY },
+          bl: { x: boxX, y: boxY + boxH },
+          br: { x: boxX + boxW, y: boxY + boxH }
+        };
+
+        let foundHandle = null;
+        const threshold = 24; // Generous tactile threshold for precise mobile touches
+
+        for (const [key, h] of Object.entries(handles)) {
+          const dist = Math.hypot(x - h.x, y - h.y);
+          if (dist < threshold) {
+            foundHandle = key;
+            break;
+          }
+        }
+
+        isCropDragging = true;
+        cropDragStart = { x, y };
+        cropBoxStart = { ...cropBoxOriginal };
+        cropCanvas.setPointerCapture(e.pointerId);
+
+        if (foundHandle) {
+          activeCropHandle = foundHandle;
+        } else if (x >= boxX && x <= boxX + boxW && y >= boxY && y <= boxY + boxH) {
+          activeCropHandle = "move";
+        } else {
+          activeCropHandle = "draw";
+          const origPos = mapCanvasToOriginal(x, y);
+          cropBoxOriginal = { x: origPos.x, y: origPos.y, w: 0, h: 0 };
+        }
+      }
+
+      function handleCropPointerMove(e) {
+        if (!isCropDragging || !cropCanvas) return;
+
+        const rect = cropCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        lastPointerPos = { x, y };
+
+        // Convert drag delta from canvas space to original coordinates for pixel-level correctness
+        const origStart = mapCanvasToOriginal(cropDragStart.x, cropDragStart.y);
+        const origCurrent = mapCanvasToOriginal(x, y);
+        const odx = origCurrent.x - origStart.x;
+        const ody = origCurrent.y - origStart.y;
+
+        const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+        if (activeCropHandle === "move") {
+          cropBoxOriginal.x = clamp(cropBoxStart.x + odx, 0, cropImageSource.width - cropBoxOriginal.w);
+          cropBoxOriginal.y = clamp(cropBoxStart.y + ody, 0, cropImageSource.height - cropBoxOriginal.h);
+        } else if (activeCropHandle === "draw") {
+          cropBoxOriginal.x = Math.min(origStart.x, origCurrent.x);
+          cropBoxOriginal.y = Math.min(origStart.y, origCurrent.y);
+          cropBoxOriginal.w = Math.abs(origStart.x - origCurrent.x);
+          cropBoxOriginal.h = Math.abs(origStart.y - origCurrent.y);
+
+          // Bound drawn region inside actual image boundary
+          cropBoxOriginal.x = clamp(cropBoxOriginal.x, 0, cropImageSource.width);
+          cropBoxOriginal.y = clamp(cropBoxOriginal.y, 0, cropImageSource.height);
+          cropBoxOriginal.w = clamp(cropBoxOriginal.w, 0, cropImageSource.width - cropBoxOriginal.x);
+          cropBoxOriginal.h = clamp(cropBoxOriginal.h, 0, cropImageSource.height - cropBoxOriginal.y);
+        } else {
+          let newX1 = cropBoxStart.x;
+          let newY1 = cropBoxStart.y;
+          let newX2 = cropBoxStart.x + cropBoxStart.w;
+          let newY2 = cropBoxStart.y + cropBoxStart.h;
+
+          const minSize = Math.max(15, Math.round(cropImageSource.width * 0.015)); // Minimum 1.5% selection bounds
+
+          if (activeCropHandle === "tl") {
+            newX1 = clamp(cropBoxStart.x + odx, 0, newX2 - minSize);
+            newY1 = clamp(cropBoxStart.y + ody, 0, newY2 - minSize);
+          } else if (activeCropHandle === "tr") {
+            newX2 = clamp(cropBoxStart.x + cropBoxStart.w + odx, newX1 + minSize, cropImageSource.width);
+            newY1 = clamp(cropBoxStart.y + ody, 0, newY2 - minSize);
+          } else if (activeCropHandle === "bl") {
+            newX1 = clamp(cropBoxStart.x + odx, 0, newX2 - minSize);
+            newY2 = clamp(cropBoxStart.y + cropBoxStart.h + ody, newY1 + minSize, cropImageSource.height);
+          } else if (activeCropHandle === "br") {
+            newX2 = clamp(cropBoxStart.x + cropBoxStart.w + odx, newX1 + minSize, cropImageSource.width);
+            newY2 = clamp(cropBoxStart.y + cropBoxStart.h + ody, newY1 + minSize, cropImageSource.height);
+          }
+
+          cropBoxOriginal.x = newX1;
+          cropBoxOriginal.y = newY1;
+          cropBoxOriginal.w = newX2 - newX1;
+          cropBoxOriginal.h = newY2 - newY1;
+        }
+
+        drawCropCanvas();
+      }
+
+      function handleCropPointerUp(e) {
+        if (isCropDragging && cropCanvas) {
+          cropCanvas.releasePointerCapture(e.pointerId);
+          isCropDragging = false;
+          activeCropHandle = null;
+
+          if (cropBoxOriginal.w < 15 || cropBoxOriginal.h < 15) {
+            const w = Math.round(cropImageSource.width * 0.7);
+            const h = Math.round(cropImageSource.height * 0.7);
+            cropBoxOriginal = {
+              x: Math.round((cropImageSource.width - w) / 2),
+              y: Math.round((cropImageSource.height - h) / 2),
+              w,
+              h
+            };
+          }
+          drawCropCanvas();
+        }
+      }
+
+      window.cancelCrop = function() {
+        document.getElementById("scanner-crop-container").classList.add("hidden");
+        // Restart camera stream if tab-camera is active
+        const tabCameraBtn = document.getElementById("scanner-tab-camera");
+        if (tabCameraBtn && tabCameraBtn.classList.contains("border-b-2")) {
+          startCameraStream();
+        }
+      };
+
+      window.useFullImage = function() {
+        document.getElementById("scanner-crop-container").classList.add("hidden");
+        processScannedImage(cropImageBase64);
+      };
+
+      window.confirmCropAndScan = function() {
+        if (!cropImageSource) return;
+
+        try {
+          const sx = Math.round(cropBoxOriginal.x);
+          const sy = Math.round(cropBoxOriginal.y);
+          const sw = Math.round(cropBoxOriginal.w);
+          const sh = Math.round(cropBoxOriginal.h);
+
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = sw;
+          tempCanvas.height = sh;
+
+          const tempCtx = tempCanvas.getContext("2d");
+          if (tempCtx) {
+            tempCtx.drawImage(
+              cropImageSource,
+              sx, sy, sw, sh,
+              0, 0, sw, sh
+            );
+            const croppedBase64 = tempCanvas.toDataURL("image/jpeg", 0.85);
+
+            document.getElementById("scanner-crop-container").classList.add("hidden");
+            processScannedImage(croppedBase64);
+          } else {
+            window.useFullImage();
+          }
+        } catch (err) {
+          console.error("Failed to crop image:", err);
+          window.useFullImage();
         }
       };
 
