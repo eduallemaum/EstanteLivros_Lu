@@ -33,6 +33,35 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
+// Helper for exponential backoff retry on transient errors (503, 429, etc.)
+async function generateContentWithRetry(client: GoogleGenAI, params: any, maxRetries = 3, initialDelay = 1500): Promise<any> {
+  let delay = initialDelay;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await client.models.generateContent(params);
+    } catch (error: any) {
+      const isTransient = 
+        error.status === 503 || 
+        error.code === 503 ||
+        error.statusCode === 503 ||
+        (error.message && error.message.includes("503")) ||
+        (error.message && error.message.includes("high demand")) ||
+        (error.message && error.message.includes("UNAVAILABLE")) ||
+        error.status === 429 ||
+        error.code === 429 ||
+        (error.message && error.message.includes("429"));
+        
+      if (isTransient && attempt < maxRetries) {
+        console.warn(`[Gemini API] Erro temporário detectado (Tentativa ${attempt}/${maxRetries}). Re-tentando em ${delay}ms... Motivo:`, error.message || error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 // API to scan books using Gemini 2.5 Flash (via 'gemini-3.5-flash' alias as per guidelines)
 app.post("/api/scan", async (req, res) => {
   try {
@@ -71,7 +100,7 @@ Para o livro identificado, forneça as seguintes informações em português bra
 
 Retorne obrigatoriamente uma lista contendo exatamente este único livro estruturado em JSON de acordo com o esquema fornecido.`;
 
-    const response = await client.models.generateContent({
+    const response = await generateContentWithRetry(client, {
       model: "gemini-3.5-flash",
       contents: [
         imagePart,
