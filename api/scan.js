@@ -56,7 +56,7 @@ export default async function handler(req, res) {
 
     // Extract raw base64 data if it contains the data:image prefix
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.USER_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
