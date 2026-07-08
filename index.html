@@ -65,12 +65,12 @@
     <aside class="w-full md:w-64 shrink-0 flex flex-col gap-6 md:py-2">
       <div class="flex items-center justify-between md:block px-2">
         <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7986cb] to-[#b39ddb] flex items-center justify-center text-white shadow-lg shadow-[#7986cb]/25">
-            <i data-lucide="library" class="w-5 h-5"></i>
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7986cb] to-[#b39ddb] flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-[#7986cb]/25" title="Jornalista Luciana 🐱">
+            🐱
           </div>
           <div>
-            <h1 class="text-xl font-extrabold tracking-tight text-[#7986cb] leading-tight flex items-center gap-1.5">
-              Estante da Lu <span class="text-sm">🐱</span>
+            <h1 class="text-xl font-extrabold tracking-tight text-[#7986cb] leading-tight">
+              Estante da Lu
             </h1>
             <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
               Biblioteca Pessoal
@@ -88,67 +88,41 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <nav class="flex md:flex-col gap-2 bg-white/60 md:bg-transparent p-1.5 md:p-0 rounded-2xl border border-slate-200/50 md:border-none">
+      <nav class="flex md:flex-col gap-2 bg-white/60 md:bg-transparent p-1.5 md:p-0 rounded-2xl border border-slate-200/50 md:border-none overflow-x-auto no-scrollbar max-w-full">
         <button
           id="nav-btn-Todos"
           onclick="filterStatus('Todos')"
-          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all bg-white text-[#7986cb] shadow-sm border border-slate-100"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all bg-white text-[#7986cb] shadow-sm border border-slate-100 whitespace-nowrap"
         >
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-          <span class="hidden sm:inline md:inline">Painel</span>
+          <span>Painel</span>
+        </button>
+        <button
+          id="nav-btn-Quero-Ler"
+          onclick="filterStatus('Quero Ler')"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap"
+        >
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+          <span>Quero Ler</span>
         </button>
         <button
           id="nav-btn-Lendo"
           onclick="filterStatus('Lendo')"
-          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap"
         >
           <i data-lucide="clock" class="w-4 h-4"></i>
-          <span class="hidden sm:inline md:inline">Lendo</span>
+          <span>Lendo</span>
         </button>
         <button
           id="nav-btn-Lido"
           onclick="filterStatus('Lido')"
-          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap"
         >
           <i data-lucide="check-circle" class="w-4 h-4"></i>
-          <span class="hidden sm:inline md:inline">Lidos</span>
+          <span>Lidos</span>
         </button>
       </nav>
 
-      <!-- Reading Goal Widget -->
-      <div class="bg-gradient-to-br from-[#7986cb] to-[#b39ddb] p-6 rounded-3xl text-white shadow-lg shadow-[#7986cb]/10 relative overflow-hidden flex flex-col justify-between min-h-[160px] md:mt-auto">
-        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider opacity-90">Meta de Leitura</span>
-            <i data-lucide="award" class="w-4 h-4 text-[#FF9F0A]"></i>
-          </div>
-          <div class="flex items-baseline gap-1.5">
-            <span id="goal-current-books" class="text-3xl font-black">0</span>
-            <span class="text-sm opacity-70">de</span>
-            <div class="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-lg">
-              <span id="goal-target" class="text-sm font-bold">24</span>
-              <div class="flex flex-col text-[8px] leading-none">
-                <button onclick="updateReadingGoal(1)" class="hover:text-[#FF9F0A] transition-colors">
-                  <i data-lucide="chevron-up" class="w-2.5 h-2.5"></i>
-                </button>
-                <button onclick="updateReadingGoal(-1)" class="hover:text-[#FF9F0A] transition-colors">
-                  <i data-lucide="chevron-down" class="w-2.5 h-2.5"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="mt-4">
-          <div class="flex justify-between items-center text-xs mb-1 opacity-85">
-            <span id="goal-percentage">0% Concluído</span>
-            <span id="goal-count-label">0/24 livros</span>
-          </div>
-          <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-            <div id="goal-progress-bar" class="bg-[#FF9F0A] h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-          </div>
-        </div>
-      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -169,10 +143,10 @@
           />
         </div>
 
-        <div class="flex items-center gap-3 justify-end">
+        <div class="hidden sm:flex items-center gap-3 justify-end">
           <button
             onclick="openAddBookModal()"
-            class="bg-white p-3 rounded-2xl shadow-sm text-slate-500 hover:text-[#7986cb] hover:bg-slate-50 transition-all hidden sm:block"
+            class="bg-white p-3 rounded-2xl shadow-sm text-slate-500 hover:text-[#7986cb] hover:bg-slate-50 transition-all"
             title="Adicionar livro manualmente"
           >
             <i data-lucide="plus" class="w-5 h-5"></i>
@@ -188,18 +162,44 @@
         
         <!-- Minha Estante Box -->
         <section class="md:col-span-8 md:row-span-4 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col border border-slate-100">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
             <div>
               <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Minha Estante</h2>
               <p class="text-xs text-slate-400 font-medium">A curadoria literária da jornalista Lu</p>
             </div>
 
-            <!-- Filter Pills inside Shelf -->
-            <div class="flex gap-1.5 bg-slate-100 p-1 rounded-xl self-stretch sm:self-auto overflow-x-auto no-scrollbar">
-              <button onclick="filterStatus('Todos')" id="filter-pill-Todos" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap bg-white text-[#7986cb] shadow-sm">Todos</button>
-              <button onclick="filterStatus('Quero Ler')" id="filter-pill-Quero-Ler" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800">Quero Ler</button>
-              <button onclick="filterStatus('Lendo')" id="filter-pill-Lendo" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800">Lendo</button>
-              <button onclick="filterStatus('Lido')" id="filter-pill-Lido" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800">Lido</button>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto shrink-0 justify-between xl:justify-start">
+              <!-- Sort Selector -->
+              <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-xl shadow-sm">
+                <i data-lucide="arrow-down-az" class="w-3.5 h-3.5 text-[#7986cb]"></i>
+                <select id="sort-selector" onchange="setSortBy(this.value)" class="bg-transparent text-xs font-bold text-slate-600 focus:outline-none cursor-pointer">
+                  <option value="title">Ordenar por: Título</option>
+                  <option value="author">Ordenar por: Autor</option>
+                  <option value="genre">Ordenar por: Gênero</option>
+                </select>
+              </div>
+
+              <!-- View Mode Toggle -->
+              <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner shrink-0">
+                <button
+                  onclick="setViewMode('cards')"
+                  id="view-mode-cards"
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-white text-[#7986cb] shadow-sm"
+                  title="Visualização em Cards"
+                >
+                  <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                  <span class="inline">Cards</span>
+                </button>
+                <button
+                  onclick="setViewMode('list')"
+                  id="view-mode-list"
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-500 hover:text-slate-800"
+                  title="Lista Corrida"
+                >
+                  <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                  <span class="inline">Lista</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -287,6 +287,41 @@
 
           <div id="total-firestore-label" class="text-[10px] text-slate-400 font-medium pt-3 mt-4 border-t border-slate-50">
             Total de 0 registros no Firestore.
+          </div>
+        </section>
+
+        <!-- Reading Goal Widget -->
+        <section class="md:col-span-4 bg-gradient-to-br from-[#7986cb] to-[#b39ddb] p-6 rounded-[2rem] text-white shadow-lg shadow-[#7986cb]/10 relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider opacity-90">Meta de Leitura</span>
+              <i data-lucide="award" class="w-4 h-4 text-[#FF9F0A]"></i>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="goal-current-books" class="text-3xl font-black">0</span>
+              <span class="text-sm opacity-70">de</span>
+              <div class="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-lg">
+                <span id="goal-target" class="text-sm font-bold">24</span>
+                <div class="flex flex-col text-[8px] leading-none">
+                  <button onclick="updateReadingGoal(1)" class="hover:text-[#FF9F0A] transition-colors">
+                    <i data-lucide="chevron-up" class="w-2.5 h-2.5"></i>
+                  </button>
+                  <button onclick="updateReadingGoal(-1)" class="hover:text-[#FF9F0A] transition-colors">
+                    <i data-lucide="chevron-down" class="w-2.5 h-2.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex justify-between items-center text-xs mb-1 opacity-85">
+              <span id="goal-percentage">0% Concluído</span>
+              <span id="goal-count-label">0/24 livros</span>
+            </div>
+            <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+              <div id="goal-progress-bar" class="bg-[#FF9F0A] h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
           </div>
         </section>
 
@@ -919,6 +954,8 @@
         loading: true,
         searchQuery: "",
         selectedStatus: "Todos",
+        viewMode: localStorage.getItem("estante_da_lu_view_mode") || "cards",
+        sortBy: localStorage.getItem("estante_da_lu_sort_by") || "title",
         editingBook: null,
         reviewQueue: [],
         isReviewMode: false,
@@ -1077,7 +1114,7 @@
         }
 
         // Apply filters
-        const filteredBooks = state.books.filter((book) => {
+        let filteredBooks = state.books.filter((book) => {
           const matchesSearch =
             book.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
             book.author.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
@@ -1088,6 +1125,29 @@
 
           return matchesSearch && matchesStatus;
         });
+
+        // Apply Sort based on selected sort criteria
+        filteredBooks.sort((a, b) => {
+          let fieldA = "";
+          let fieldB = "";
+          if (state.sortBy === "author") {
+            fieldA = (a.author || "").trim();
+            fieldB = (b.author || "").trim();
+          } else if (state.sortBy === "genre") {
+            fieldA = (a.genre || "").trim();
+            fieldB = (b.genre || "").trim();
+          } else {
+            fieldA = (a.title || "").trim();
+            fieldB = (b.title || "").trim();
+          }
+          return fieldA.localeCompare(fieldB, "pt", { sensitivity: "base" });
+        });
+
+        if (state.viewMode === "list") {
+          booksGrid.className = "flex flex-col divide-y divide-slate-100 max-h-[600px] overflow-y-auto pr-1 no-scrollbar";
+        } else {
+          booksGrid.className = "grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar";
+        }
 
         // Set Empty State
         if (filteredBooks.length === 0) {
@@ -1103,26 +1163,111 @@
           booksGrid.classList.remove("hidden");
         }
 
-        // Generate Grid Cards
-        booksGrid.innerHTML = filteredBooks.map((book) => {
-          const isExpanded = state.expandedBookIds[book.id] || false;
-          const hashVal = getHash(book.title);
-          const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
-          
-          // Render Cover HTML
-          let coverHTML = "";
-          if (book.coverImage && book.coverImage.startsWith("http")) {
-            coverHTML = `
-              <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10">
-                <img
-                  src="${book.coverImage}"
-                  referrerpolicy="no-referrer"
-                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                  class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  alt="${book.title}"
-                />
-                <!-- Fallback gradient hidden by default, shown if image breaks -->
-                <div style="display:none;" class="absolute inset-0 bg-gradient-to-br ${theme.bg} flex flex-col justify-between p-3 border-l-4 border-black/10 select-none text-slate-800">
+        // Update View Mode Buttons styling dynamically
+        const cardsBtn = document.getElementById("view-mode-cards");
+        const listBtn = document.getElementById("view-mode-list");
+        if (cardsBtn && listBtn) {
+          if (state.viewMode === "cards") {
+            cardsBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-white text-[#7986cb] shadow-sm";
+            listBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-500 hover:text-slate-800";
+          } else {
+            cardsBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-500 hover:text-slate-800";
+            listBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-white text-[#7986cb] shadow-sm";
+          }
+        }
+
+        // Sync Sort Selector value in the DOM
+        const sortSelector = document.getElementById("sort-selector");
+        if (sortSelector) {
+          sortSelector.value = state.sortBy;
+        }
+
+        // Generate Grid Cards or List Rows
+        if (state.viewMode === "list") {
+          booksGrid.innerHTML = filteredBooks.map((book) => {
+            let statusIconHTML = "";
+            if (book.status === "Lido") {
+              statusIconHTML = `
+                <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Lido">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
+                </div>
+              `;
+            } else if (book.status === "Lendo") {
+              statusIconHTML = `
+                <div class="w-8 h-8 rounded-full bg-[#EDE7F6] text-[#7986cb] border border-[#b39ddb]/30 flex items-center justify-center shrink-0 shadow-sm" title="Lendo">
+                  <i data-lucide="clock" class="w-4 h-4 animate-pulse"></i>
+                </div>
+              `;
+            } else {
+              statusIconHTML = `
+                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Quero Ler">
+                  <i data-lucide="book-open" class="w-4 h-4"></i>
+                </div>
+              `;
+            }
+
+            return `
+              <div id="book-row-${book.id}" class="py-3 flex items-center justify-between gap-4 group hover:bg-slate-50/70 px-2 rounded-2xl transition-all border-b border-slate-50 last:border-0">
+                <div class="flex-1 min-w-0 flex items-center gap-3">
+                  ${statusIconHTML}
+                  <div class="min-w-0">
+                    <h4 class="font-sans font-bold text-slate-800 text-sm sm:text-base leading-snug truncate group-hover:text-[#7986cb] transition-colors">${book.title}</h4>
+                    <p class="text-xs text-slate-400 font-medium truncate mt-0.5">
+                      por <span class="text-slate-600 font-semibold">${book.author}</span> 
+                      ${book.genre ? `• <span class="text-slate-500 font-semibold">${book.genre}</span>` : ""}
+                      ${book.pages > 0 ? `• <span class="text-slate-500 font-medium">${book.pages} pág.</span>` : ""}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <button onclick="openEditBookModal('${book.id}')" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar Livro">
+                    <i data-lucide="edit-2" class="w-4 h-4"></i>
+                  </button>
+                  <button onclick="deleteBookDoc('${book.id}')" class="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors" title="Excluir Livro">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("");
+        } else {
+          booksGrid.innerHTML = filteredBooks.map((book) => {
+            const isExpanded = state.expandedBookIds[book.id] || false;
+            const hashVal = getHash(book.title);
+            const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
+            
+            // Render Cover HTML
+            let coverHTML = "";
+            if (book.coverImage && book.coverImage.startsWith("http")) {
+              coverHTML = `
+                <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10">
+                  <img
+                    src="${book.coverImage}"
+                    referrerpolicy="no-referrer"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    alt="${book.title}"
+                  />
+                  <!-- Fallback gradient hidden by default, shown if image breaks -->
+                  <div style="display:none;" class="absolute inset-0 bg-gradient-to-br ${theme.bg} flex flex-col justify-between p-3 border-l-4 border-black/10 select-none text-slate-800">
+                    <div class="text-[9px] uppercase tracking-wider font-semibold opacity-70 truncate">${book.genre || 'Literatura'}</div>
+                    <div class="flex-1 flex flex-col justify-center my-1 text-center">
+                      <h4 class="font-serif text-[10px] font-bold leading-tight line-clamp-3 mb-1">${book.title || 'Sem Título'}</h4>
+                      <p class="text-[8px] opacity-80 italic truncate">${book.author || 'Sem Autor'}</p>
+                    </div>
+                    <div class="flex justify-center items-center mt-auto">
+                      <div class="w-2.5 h-2.5 rounded-full ${theme.accent} opacity-60"></div>
+                    </div>
+                  </div>
+                  <div class="absolute top-0 left-0 w-1 h-full bg-black/10 rounded-r-sm pointer-events-none"></div>
+                  <div class="absolute top-0 left-2 w-px h-full bg-white/20 pointer-events-none"></div>
+                </div>
+              `;
+            } else {
+              coverHTML = `
+                <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 flex flex-col justify-between p-3 border-l-4 border-black/10 select-none bg-gradient-to-br ${theme.bg} text-slate-800">
+                  <div class="absolute top-0 left-0 w-1 h-full bg-black/5 rounded-r-sm"></div>
+                  <div class="absolute top-0 left-2 w-px h-full bg-white/30"></div>
                   <div class="text-[9px] uppercase tracking-wider font-semibold opacity-70 truncate">${book.genre || 'Literatura'}</div>
                   <div class="flex-1 flex flex-col justify-center my-1 text-center">
                     <h4 class="font-serif text-[10px] font-bold leading-tight line-clamp-3 mb-1">${book.title || 'Sem Título'}</h4>
@@ -1132,109 +1277,89 @@
                     <div class="w-2.5 h-2.5 rounded-full ${theme.accent} opacity-60"></div>
                   </div>
                 </div>
-                <div class="absolute top-0 left-0 w-1 h-full bg-black/10 rounded-r-sm pointer-events-none"></div>
-                <div class="absolute top-0 left-2 w-px h-full bg-white/20 pointer-events-none"></div>
-              </div>
-            `;
-          } else {
-            coverHTML = `
-              <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 flex flex-col justify-between p-3 border-l-4 border-black/10 select-none bg-gradient-to-br ${theme.bg} text-slate-800">
-                <div class="absolute top-0 left-0 w-1 h-full bg-black/5 rounded-r-sm"></div>
-                <div class="absolute top-0 left-2 w-px h-full bg-white/30"></div>
-                <div class="text-[9px] uppercase tracking-wider font-semibold opacity-70 truncate">${book.genre || 'Literatura'}</div>
-                <div class="flex-1 flex flex-col justify-center my-1 text-center">
-                  <h4 class="font-serif text-[10px] font-bold leading-tight line-clamp-3 mb-1">${book.title || 'Sem Título'}</h4>
-                  <p class="text-[8px] opacity-80 italic truncate">${book.author || 'Sem Autor'}</p>
+              `;
+            }
+
+            // Status Badge Badge Markup
+            let statusBadge = "";
+            if (book.status === "Lendo") {
+              statusBadge = `
+                <div class="w-8 h-8 rounded-full bg-[#EDE7F6] text-[#7986cb] border border-[#b39ddb]/30 flex items-center justify-center shrink-0 shadow-sm" title="Lendo">
+                  <i data-lucide="clock" class="w-4 h-4 animate-pulse"></i>
                 </div>
-                <div class="flex justify-center items-center mt-auto">
-                  <div class="w-2.5 h-2.5 rounded-full ${theme.accent} opacity-60"></div>
+              `;
+            } else if (book.status === "Lido") {
+              statusBadge = `
+                <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Lido">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
                 </div>
-              </div>
-            `;
-          }
+              `;
+            } else {
+              statusBadge = `
+                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Quero Ler">
+                  <i data-lucide="book-open" class="w-4 h-4"></i>
+                </div>
+              `;
+            }
 
-          // Status Badge Badge Markup
-          let statusBadge = "";
-          if (book.status === "Lendo") {
-            statusBadge = `
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EDE7F6] text-[#7986cb] border border-[#b39ddb]/30">
-                <i data-lucide="clock" class="w-3 h-3 text-[#7986cb] animate-pulse"></i>
-                Lendo
-              </span>
-            `;
-          } else if (book.status === "Lido") {
-            statusBadge = `
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-[#a5d6a7]/40">
-                <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
-                Lido
-              </span>
-            `;
-          } else {
-            statusBadge = `
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/50">
-                <i data-lucide="book-open" class="w-3 h-3 text-amber-600"></i>
-                Quero Ler
-              </span>
-            `;
-          }
+            // Synopsis Accordion Area
+            let synopsisSection = "";
+            if (book.synopsis) {
+              synopsisSection = `
+                <div class="border-t border-slate-50 pt-3 mt-1">
+                  <button
+                    onclick="toggleSynopsis('${book.id}')"
+                    class="w-full flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors py-1"
+                  >
+                    <span>Sinopse</span>
+                    <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5"></i>
+                  </button>
+                  ${isExpanded ? `
+                    <p class="text-xs text-slate-600 mt-2 leading-relaxed text-justify bg-slate-50/50 p-2.5 rounded-xl border border-slate-50">
+                      ${book.synopsis}
+                    </p>
+                  ` : ""}
+                </div>
+              `;
+            }
 
-          // Synopsis Accordion Area
-          let synopsisSection = "";
-          if (book.synopsis) {
-            synopsisSection = `
-              <div class="border-t border-slate-50 pt-3 mt-1">
-                <button
-                  onclick="toggleSynopsis('${book.id}')"
-                  class="w-full flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors py-1"
-                >
-                  <span>Sinopse</span>
-                  <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5"></i>
-                </button>
-                ${isExpanded ? `
-                  <p class="text-xs text-slate-600 mt-2 leading-relaxed text-justify bg-slate-50/50 p-2.5 rounded-xl border border-slate-50">
-                    ${book.synopsis}
-                  </p>
-                ` : ""}
-              </div>
-            `;
-          }
-
-          return `
-            <div id="book-card-${book.id}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300 flex flex-col gap-4 relative overflow-hidden">
-              <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#EDE7F6]/30 via-transparent to-transparent rounded-tr-2xl pointer-events-none"></div>
-              
-              <div class="flex gap-4 items-start">
-                ${coverHTML}
+            return `
+              <div id="book-card-${book.id}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300 flex flex-col gap-4 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#EDE7F6]/30 via-transparent to-transparent rounded-tr-2xl pointer-events-none"></div>
                 
-                <div class="flex-1 min-w-0 flex flex-col justify-between h-36">
-                  <div>
-                    <h3 class="font-sans font-bold text-slate-800 text-base leading-snug line-clamp-2">${book.title}</h3>
-                    <p class="text-sm text-slate-500 font-medium truncate mt-0.5">por ${book.author}</p>
-                    <div class="flex flex-wrap gap-1.5 mt-2">
-                      <span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.genre || 'Não classificado'}</span>
-                      ${book.pages > 0 ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.pages} pág.</span>` : ""}
+                <div class="flex gap-4 items-start">
+                  ${coverHTML}
+                  
+                  <div class="flex-1 min-w-0 flex flex-col justify-between h-36">
+                    <div>
+                      <h3 class="font-sans font-bold text-slate-800 text-base leading-snug line-clamp-2">${book.title}</h3>
+                      <p class="text-sm text-slate-500 font-medium truncate mt-0.5">por ${book.author}</p>
+                      <div class="flex flex-wrap gap-1.5 mt-2">
+                        <span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.genre || 'Não classificado'}</span>
+                        ${book.pages > 0 ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.pages} pág.</span>` : ""}
+                      </div>
                     </div>
-                  </div>
 
-                  <div class="flex items-center justify-between mt-auto">
-                    ${statusBadge}
-                    
-                    <div class="flex gap-1.5">
-                      <button onclick="openEditBookModal('${book.id}')" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar Livro">
-                        <i data-lucide="edit-2" class="w-4 h-4"></i>
-                      </button>
-                      <button onclick="deleteBookDoc('${book.id}')" class="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors" title="Excluir Livro">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                      </button>
+                    <div class="flex items-center justify-between mt-auto">
+                      ${statusBadge}
+                      
+                      <div class="flex gap-1.5">
+                        <button onclick="openEditBookModal('${book.id}')" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar Livro">
+                          <i data-lucide="edit-2" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteBookDoc('${book.id}')" class="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors" title="Excluir Livro">
+                          <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
+                
+                ${synopsisSection}
               </div>
-              
-              ${synopsisSection}
-            </div>
-          `;
-        }).join("");
+            `;
+          }).join("");
+        }
 
         // Calculate and Update Dashboard stats
         const totalBooks = state.books.length;
@@ -1299,30 +1424,30 @@
       window.filterStatus = function(status) {
         state.selectedStatus = status;
         
-        // Toggle selected styling on Navigation
-        ["Todos", "Lendo", "Lido"].forEach((s) => {
-          const btn = document.getElementById(`nav-btn-${s}`);
+        // Toggle selected styling on Navigation (Sidebar)
+        ["Todos", "Quero Ler", "Lendo", "Lido"].forEach((s) => {
+          const btn = document.getElementById(`nav-btn-${s.replace(" ", "-")}`);
           if (btn) {
             if (s === status) {
-              btn.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all bg-white text-[#7986cb] shadow-sm border border-slate-100";
+              btn.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all bg-white text-[#7986cb] shadow-sm border border-slate-100 whitespace-nowrap";
             } else {
-              btn.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-xl md:rounded-2xl text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700";
+              btn.className = "flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap";
             }
           }
         });
 
-        // Toggle bento filters active styling
-        ["Todos", "Quero Ler", "Lendo", "Lido"].forEach((s) => {
-          const pill = document.getElementById(`filter-pill-${s.replace(" ", "-")}`);
-          if (pill) {
-            if (s === status) {
-              pill.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap bg-white text-[#7986cb] shadow-sm";
-            } else {
-              pill.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-slate-500 hover:text-slate-800";
-            }
-          }
-        });
+        renderApp();
+      };
 
+      window.setViewMode = function(mode) {
+        state.viewMode = mode;
+        localStorage.setItem("estante_da_lu_view_mode", mode);
+        renderApp();
+      };
+
+      window.setSortBy = function(by) {
+        state.sortBy = by;
+        localStorage.setItem("estante_da_lu_sort_by", by);
         renderApp();
       };
 
