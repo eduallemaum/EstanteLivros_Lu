@@ -41,6 +41,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- OpenCV.js for perspective correction and dewarping -->
+    <script src="https://docs.opencv.org/4.5.4/opencv.js" async></script>
+
     <style>
       /* Custom styling and scrollbars */
       .no-scrollbar::-webkit-scrollbar {
@@ -406,6 +409,56 @@
           <div id="modal-error-banner" class="bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-2xl flex gap-2 items-center text-xs hidden">
             <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-500"></i>
             <span id="modal-error-text">Ocorreu um erro.</span>
+          </div>
+
+          <!-- AI Auto-Prefill Magic Section -->
+          <div id="modal-ai-prefill-section" class="bg-gradient-to-br from-indigo-50 to-violet-50/50 border border-indigo-100 p-5 rounded-2xl space-y-3 shadow-sm hidden">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 text-indigo-950 text-xs font-extrabold uppercase tracking-wider">
+                <i data-lucide="sparkles" class="w-4 h-4 text-indigo-500 animate-pulse"></i>
+                <span>Pesquisar Obra com IA</span>
+              </div>
+              <span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                Recomendado
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-relaxed font-medium">
+              Digite o número do <strong>ISBN</strong> ou o <strong>título da obra</strong> (com ou sem autor) e clique em <strong>Pesquisar</strong> para listar e selecionar edições disponíveis.
+            </p>
+            
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <i data-lucide="search" class="w-4 h-4 text-indigo-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input
+                  id="input-ai-prefill-query"
+                  type="text"
+                  placeholder="Ex: 9788575226315 ou O Nome da Rosa"
+                  class="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-indigo-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 text-xs text-slate-850 transition-all placeholder:text-slate-400 font-medium bg-white"
+                  onkeydown="if (event.key === 'Enter') { event.preventDefault(); handleAiPrefill(); }"
+                />
+              </div>
+              <button
+                id="btn-ai-prefill-submit"
+                type="button"
+                onclick="handleAiPrefill()"
+                class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-sm hover:shadow active:scale-95 disabled:pointer-events-none"
+              >
+                <span id="ai-btn-text-content" class="flex items-center gap-1.5">
+                  <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                  <span>Pesquisar</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Candidates selection -->
+            <div id="ai-candidates-container" class="mt-4 space-y-2.5 border-t border-indigo-150/50 pt-3.5 hidden">
+              <div class="text-[11px] font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1">
+                <span>💡 Clique na edição desejada para preencher:</span>
+              </div>
+              <div id="ai-candidates-list" class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                <!-- Will be populated dynamically -->
+              </div>
+            </div>
           </div>
 
           <div class="space-y-1">
@@ -903,6 +956,93 @@
       </div>
     </div>
 
+    <!-- COVER WARP MODAL (Perspective Correction) -->
+    <div id="cover-warp-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 bg-slate-950/90 backdrop-blur-md hidden select-none">
+      <div class="relative bg-slate-900 w-full sm:max-w-xl h-full sm:h-auto sm:max-h-[92vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white">
+        
+        <!-- Header -->
+        <div class="p-5 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 backdrop-blur z-10">
+          <div class="flex items-center gap-2">
+            <i data-lucide="scan" class="w-5 h-5 text-[#b39ddb] animate-pulse"></i>
+            <h2 class="font-sans font-bold text-lg">Ajustar Perspectiva da Capa</h2>
+          </div>
+          <button onclick="closeCoverWarpModal()" class="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Warning / Help Banner -->
+        <div class="p-4 bg-indigo-950/50 border-b border-indigo-900/40 text-xs text-indigo-200 flex gap-2 items-start">
+          <i data-lucide="info" class="w-4 h-4 text-[#b39ddb] shrink-0 mt-0.5"></i>
+          <p>
+            Arraste os <strong>4 pinos roxos</strong> para as quinas (cantos) exatas da capa do livro para retificar e planificar a imagem.
+          </p>
+        </div>
+
+        <!-- Warp Interactive Area -->
+        <div class="flex-1 relative bg-black flex flex-col justify-center items-center min-h-[50vh] max-h-[65vh] p-6 overflow-hidden">
+          <!-- Main Image Wrapper with responsive sizing -->
+          <div id="warp-image-wrapper" class="relative max-w-full max-h-full inline-block">
+            <!-- Source Image inside -->
+            <img id="warp-source-img" class="max-w-full max-h-[55vh] object-fill select-none pointer-events-none opacity-90 transition-opacity" src="" alt="Capa original" />
+            
+            <!-- SVG Overlay for connected lines & semi-transparent mask -->
+            <svg id="warp-svg-overlay" class="absolute inset-0 w-full h-full pointer-events-none z-10">
+              <polygon id="warp-polygon" fill="rgba(121, 134, 203, 0.25)" stroke="#b39ddb" stroke-width="2.5" stroke-dasharray="2 2" />
+            </svg>
+
+            <!-- 4 Draggable Pin Handles -->
+            <!-- Top Left Pin -->
+            <div id="warp-pin-tl" class="warp-pin absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7986cb] border-2 border-white cursor-move flex items-center justify-center shadow-lg select-none touch-none z-20 hover:scale-110 active:scale-95 transition-transform" style="left: 10%; top: 10%;">
+              <div class="w-2.5 h-2.5 rounded-full bg-white animate-ping absolute opacity-75"></div>
+              <span class="text-[10px] font-black pointer-events-none">SE</span>
+            </div>
+            <!-- Top Right Pin -->
+            <div id="warp-pin-tr" class="warp-pin absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7986cb] border-2 border-white cursor-move flex items-center justify-center shadow-lg select-none touch-none z-20 hover:scale-110 active:scale-95 transition-transform" style="left: 90%; top: 10%;">
+              <div class="w-2.5 h-2.5 rounded-full bg-white animate-ping absolute opacity-75"></div>
+              <span class="text-[10px] font-black pointer-events-none">SD</span>
+            </div>
+            <!-- Bottom Left Pin -->
+            <div id="warp-pin-bl" class="warp-pin absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7986cb] border-2 border-white cursor-move flex items-center justify-center shadow-lg select-none touch-none z-20 hover:scale-110 active:scale-95 transition-transform" style="left: 10%; top: 90%;">
+              <div class="w-2.5 h-2.5 rounded-full bg-white animate-ping absolute opacity-75"></div>
+              <span class="text-[10px] font-black pointer-events-none">IE</span>
+            </div>
+            <!-- Bottom Right Pin -->
+            <div id="warp-pin-br" class="warp-pin absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7986cb] border-2 border-white cursor-move flex items-center justify-center shadow-lg select-none touch-none z-20 hover:scale-110 active:scale-95 transition-transform" style="left: 90%; top: 90%;">
+              <div class="w-2.5 h-2.5 rounded-full bg-white animate-ping absolute opacity-75"></div>
+              <span class="text-[10px] font-black pointer-events-none">ID</span>
+            </div>
+          </div>
+          
+          <!-- Loading Mask -->
+          <div id="warp-loading-overlay" class="absolute inset-0 bg-slate-950/80 z-30 flex flex-col items-center justify-center p-6 text-center hidden">
+            <div class="w-12 h-12 rounded-full border-4 border-[#7986cb]/20 border-t-[#7986cb] animate-spin mb-4"></div>
+            <p class="text-sm font-bold text-white mb-1">Processando Capa...</p>
+            <p class="text-xs text-slate-400">O OpenCV.js está alinhando a perspectiva do livro.</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-5 border-t border-slate-800 bg-slate-900 flex gap-3">
+          <button
+            type="button"
+            onclick="closeCoverWarpModal()"
+            class="flex-1 py-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all active:scale-95"
+          >
+            Voltar
+          </button>
+          <button
+            id="btn-confirm-warp"
+            type="button"
+            onclick="confirmWarp()"
+            class="flex-[2] py-3 bg-[#7986cb] hover:bg-[#7986cb]/90 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-[#7986cb]/20 flex items-center justify-center gap-1.5 active:scale-95"
+          >
+            <i data-lucide="check" class="w-4 h-4"></i> Cortar e Alinhar
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- FIREBASE SDK & APP LOGIC SCRIPT MODULE -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -1011,7 +1151,9 @@
         isReviewMode: false,
         expandedBookIds: {},
         readingGoal: parseInt(localStorage.getItem("estante_da_lu_goal") || "24", 10),
-        formSelectedStatus: "Quero Ler"
+        formSelectedStatus: "Quero Ler",
+        aiCandidates: [],
+        isAiLoading: false
       };
 
       // Simple stable hash for covers
@@ -1288,7 +1430,7 @@
             
             // Render Cover HTML
             let coverHTML = "";
-            if (book.coverImage && book.coverImage.startsWith("http")) {
+            if (book.coverImage && (book.coverImage.startsWith("http") || book.coverImage.startsWith("data:image"))) {
               coverHTML = `
                 <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10">
                   <img
@@ -1519,13 +1661,26 @@
         renderApp();
       };
 
-      // 8. CRUD Operations
+       // 8. CRUD Operations
       window.openAddBookModal = function() {
         state.editingBook = null;
         document.getElementById("modal-title").innerText = "Adicionar Livro";
         document.getElementById("modal-sparkles-badge").classList.add("hidden");
         document.getElementById("modal-ai-banner").classList.add("hidden");
         document.getElementById("modal-error-banner").classList.add("hidden");
+
+        // Reset AI prefill UI
+        const prefillSection = document.getElementById("modal-ai-prefill-section");
+        if (prefillSection) {
+          prefillSection.classList.remove("hidden");
+          const prefillInput = document.getElementById("input-ai-prefill-query");
+          if (prefillInput) prefillInput.value = "";
+          const prefillCandidates = document.getElementById("ai-candidates-container");
+          if (prefillCandidates) prefillCandidates.classList.add("hidden");
+          const prefillList = document.getElementById("ai-candidates-list");
+          if (prefillList) prefillList.innerHTML = "";
+        }
+        state.aiCandidates = [];
 
         // Reset Form
         document.getElementById("form-title").value = "";
@@ -1543,6 +1698,7 @@
         const modal = document.getElementById("book-modal");
         modal.classList.remove("hidden");
         modal.classList.add("flex");
+        if (window.lucide) window.lucide.createIcons();
       };
 
       window.openEditBookModal = function(bookId) {
@@ -1554,6 +1710,10 @@
         document.getElementById("modal-sparkles-badge").classList.add("hidden");
         document.getElementById("modal-ai-banner").classList.add("hidden");
         document.getElementById("modal-error-banner").classList.add("hidden");
+
+        // Hide AI prefill section since we are editing
+        const prefillSection = document.getElementById("modal-ai-prefill-section");
+        if (prefillSection) prefillSection.classList.add("hidden");
 
         // Fill fields
         document.getElementById("form-title").value = book.title || "";
@@ -1575,6 +1735,7 @@
         const modal = document.getElementById("book-modal");
         modal.classList.remove("hidden");
         modal.classList.add("flex");
+        if (window.lucide) window.lucide.createIcons();
       };
 
       window.closeBookModal = function() {
@@ -1588,6 +1749,161 @@
           state.isReviewMode = false;
           state.reviewQueue = [];
           renderApp();
+        }
+      };
+
+      window.handleAiPrefill = async function() {
+        const queryInput = document.getElementById("input-ai-prefill-query");
+        const query = queryInput ? queryInput.value.trim() : "";
+        const errorBanner = document.getElementById("modal-error-banner");
+        const errorText = document.getElementById("modal-error-text");
+        
+        if (!query) {
+          if (errorBanner && errorText) {
+            errorText.innerText = "Por favor, digite um ISBN ou o título do livro para pesquisar.";
+            errorBanner.classList.remove("hidden");
+          }
+          return;
+        }
+
+        // Clear error
+        if (errorBanner) errorBanner.classList.add("hidden");
+
+        const btnSubmit = document.getElementById("btn-ai-prefill-submit");
+        const btnText = document.getElementById("ai-btn-text-content");
+
+        // Set Loading state
+        if (btnSubmit && btnText) {
+          btnSubmit.disabled = true;
+          btnText.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Pesquisando...</span>
+          `;
+        }
+
+        try {
+          const response = await fetch("/api/book-info", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ query })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || "Falha ao consultar a Inteligência Artificial.");
+          }
+
+          const data = await response.json();
+          const books = data.books || [];
+
+          state.aiCandidates = books;
+
+          const candidatesContainer = document.getElementById("ai-candidates-container");
+          const candidatesList = document.getElementById("ai-candidates-list");
+
+          if (books.length === 0) {
+            throw new Error("Nenhuma edição encontrada para essa pesquisa. Tente refinar o termo.");
+          }
+
+          if (candidatesContainer && candidatesList) {
+            candidatesList.innerHTML = "";
+            books.forEach((book, idx) => {
+              const card = document.createElement("button");
+              card.type = "button";
+              card.onclick = () => window.handleSelectCandidate(idx);
+              card.className = "w-full text-left p-3 rounded-xl border border-indigo-100 hover:border-indigo-300 bg-white hover:bg-indigo-50/20 transition-all focus:outline-none flex flex-col justify-between shadow-sm hover:shadow group active:scale-[0.99]";
+              
+              const isbnBadge = book.isbn ? `<span class="text-[9px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0">ISBN: ${book.isbn}</span>` : "";
+              const editionBadge = book.editionInfo ? `<div class="text-[10px] text-indigo-600 mt-1.5 font-semibold italic">${book.editionInfo}</div>` : "";
+
+              card.innerHTML = `
+                <div class="flex justify-between items-start w-full gap-2">
+                  <span class="font-bold text-slate-800 text-xs group-hover:text-indigo-700 transition-colors">
+                    ${book.title}
+                  </span>
+                  ${isbnBadge}
+                </div>
+                <div class="text-[11px] text-slate-500 mt-0.5">
+                  de ${book.author}
+                </div>
+                ${editionBadge}
+              `;
+              candidatesList.appendChild(card);
+            });
+
+            candidatesContainer.classList.remove("hidden");
+          }
+
+        } catch (err) {
+          console.error("AI Prefill Error:", err);
+          if (errorBanner && errorText) {
+            errorText.innerText = err.message || "Erro de rede ou na IA ao buscar informações.";
+            errorBanner.classList.remove("hidden");
+          }
+        } finally {
+          if (btnSubmit && btnText) {
+            btnSubmit.disabled = false;
+            btnText.innerHTML = `
+              <i data-lucide="search" class="w-3.5 h-3.5"></i>
+              <span>Pesquisar</span>
+            `;
+            if (window.lucide) window.lucide.createIcons();
+          }
+        }
+      };
+
+      window.handleSelectCandidate = async function(idx) {
+        const book = state.aiCandidates[idx];
+        if (!book) return;
+
+        // Fill form fields
+        document.getElementById("form-title").value = book.title || "";
+        document.getElementById("form-author").value = book.author || "";
+        document.getElementById("form-genre").value = book.genre || "";
+        document.getElementById("form-pages").value = book.pages || "";
+        document.getElementById("form-synopsis").value = book.synopsis || "";
+        document.getElementById("form-isbn").value = book.isbn || "";
+        window.setFormStatus(book.status || "Quero Ler");
+
+        // Clear error
+        const errorBanner = document.getElementById("modal-error-banner");
+        if (errorBanner) errorBanner.classList.add("hidden");
+
+        // Handle cover fetching
+        const coverInput = document.getElementById("form-cover");
+
+        if (book.isbn) {
+          const directCover = `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg`;
+          if (coverInput) coverInput.value = directCover;
+          window.handleCoverInput(directCover);
+        } else {
+          // Fetch cover automatically via our existing function
+          try {
+            const btnFetch = document.getElementById("btn-fetch-cover");
+            if (btnFetch) {
+              btnFetch.disabled = true;
+              btnFetch.innerText = "Buscando...";
+            }
+            const cover = await fetchBookCover(book.title || "", book.author || "");
+            if (cover) {
+              if (coverInput) coverInput.value = cover;
+              window.handleCoverInput(cover);
+            }
+          } catch (coverErr) {
+            console.warn("Erro ao buscar capa após seleção da edição:", coverErr);
+          } finally {
+            const btnFetch = document.getElementById("btn-fetch-cover");
+            if (btnFetch) {
+              btnFetch.disabled = false;
+              btnFetch.innerHTML = `<i data-lucide="search" class="w-3.5 h-3.5"></i> Buscar Capa`;
+              if (window.lucide) window.lucide.createIcons();
+            }
+          }
         }
       };
 
@@ -2551,16 +2867,31 @@
           const sw = Math.round(cropBoxOriginal.w);
           const sh = Math.round(cropBoxOriginal.h);
 
+          // Downscale cropped image if it exceeds 1024px in any dimension
+          // This keeps payloads extremely light, reduces network transfer time, and prevents Gemini API timeouts or free-tier 503 throttling
+          const MAX_DIM = 1024;
+          let targetW = sw;
+          let targetH = sh;
+          if (sw > MAX_DIM || sh > MAX_DIM) {
+            if (sw > sh) {
+              targetW = MAX_DIM;
+              targetH = Math.round((sh * MAX_DIM) / sw);
+            } else {
+              targetH = MAX_DIM;
+              targetW = Math.round((sw * MAX_DIM) / sh);
+            }
+          }
+
           const tempCanvas = document.createElement("canvas");
-          tempCanvas.width = sw;
-          tempCanvas.height = sh;
+          tempCanvas.width = targetW;
+          tempCanvas.height = targetH;
 
           const tempCtx = tempCanvas.getContext("2d");
           if (tempCtx) {
             tempCtx.drawImage(
               cropImageSource,
               sx, sy, sw, sh,
-              0, 0, sw, sh
+              0, 0, targetW, targetH
             );
             const croppedBase64 = tempCanvas.toDataURL("image/jpeg", 0.85);
 
@@ -2680,6 +3011,10 @@
         document.getElementById("modal-sparkles-badge").classList.remove("hidden");
         document.getElementById("modal-ai-banner").classList.remove("hidden");
         document.getElementById("modal-error-banner").classList.add("hidden");
+
+        // Hide AI prefill section since we are reviewing a scan
+        const prefillSection = document.getElementById("modal-ai-prefill-section");
+        if (prefillSection) prefillSection.classList.add("hidden");
 
         // Populate fields
         document.getElementById("form-title").value = book.title || "";
@@ -2804,48 +3139,322 @@
         if (video) video.srcObject = null;
       }
 
+      // State for cover dewarping / perspective adjustment
+      let warpPins = {
+        tl: { x: 0, y: 0 },
+        tr: { x: 0, y: 0 },
+        bl: { x: 0, y: 0 },
+        br: { x: 0, y: 0 }
+      };
+      let warpRenderWidth = 0;
+      let warpRenderHeight = 0;
+      let warpNaturalWidth = 0;
+      let warpNaturalHeight = 0;
+
+      window.openCoverWarpModal = function(imageSrc) {
+        // Stop the camera stream first
+        stopCoverCameraStream();
+        
+        // Hide the capture/upload modal
+        const camModal = document.getElementById("cover-camera-modal");
+        if (camModal) {
+          camModal.classList.add("hidden");
+          camModal.classList.remove("flex");
+        }
+
+        // Show the warp modal
+        const warpModal = document.getElementById("cover-warp-modal");
+        if (warpModal) {
+          warpModal.classList.remove("hidden");
+          warpModal.classList.add("flex");
+        }
+
+        // Setup the image source
+        const img = document.getElementById("warp-source-img");
+        if (!img) return;
+
+        // Reset display inline styles during loading to get clean client bounds later
+        img.removeAttribute("style");
+        
+        img.onload = function() {
+          // Get actual natural dimensions of loaded image
+          warpNaturalWidth = img.naturalWidth;
+          warpNaturalHeight = img.naturalHeight;
+
+          // Calculate scaled bounds to fit beautifully in 55vh maximum height and modal width container
+          const wrapper = document.getElementById("warp-image-wrapper");
+          const parentWidth = wrapper.parentElement.clientWidth - 48; // padding margin
+          const parentHeight = window.innerHeight * 0.55; // 55vh
+
+          const imageRatio = warpNaturalWidth / warpNaturalHeight;
+          const containerRatio = parentWidth / parentHeight;
+
+          if (imageRatio > containerRatio) {
+            warpRenderWidth = parentWidth;
+            warpRenderHeight = parentWidth / imageRatio;
+          } else {
+            warpRenderHeight = parentHeight;
+            warpRenderWidth = parentHeight * imageRatio;
+          }
+
+          // Force exact bounds on both image element and parent wrapper
+          wrapper.style.width = `${warpRenderWidth}px`;
+          wrapper.style.height = `${warpRenderHeight}px`;
+          img.style.width = `${warpRenderWidth}px`;
+          img.style.height = `${warpRenderHeight}px`;
+
+          // Define initial pin coordinates (slightly inset 10% from actual corners for perfect usability)
+          warpPins.tl = { x: warpRenderWidth * 0.12, y: warpRenderHeight * 0.12 };
+          warpPins.tr = { x: warpRenderWidth * 0.88, y: warpRenderHeight * 0.12 };
+          warpPins.bl = { x: warpRenderWidth * 0.12, y: warpRenderHeight * 0.88 };
+          warpPins.br = { x: warpRenderWidth * 0.88, y: warpRenderHeight * 0.88 };
+
+          // Positions of the pins in CSS
+          document.getElementById("warp-pin-tl").style.left = `${warpPins.tl.x}px`;
+          document.getElementById("warp-pin-tl").style.top = `${warpPins.tl.y}px`;
+
+          document.getElementById("warp-pin-tr").style.left = `${warpPins.tr.x}px`;
+          document.getElementById("warp-pin-tr").style.top = `${warpPins.tr.y}px`;
+
+          document.getElementById("warp-pin-bl").style.left = `${warpPins.bl.x}px`;
+          document.getElementById("warp-pin-bl").style.top = `${warpPins.bl.y}px`;
+
+          document.getElementById("warp-pin-br").style.left = `${warpPins.br.x}px`;
+          document.getElementById("warp-pin-br").style.top = `${warpPins.br.y}px`;
+
+          updateWarpPolygon();
+          initPinDragging();
+
+          if (window.lucide) {
+            window.lucide.createIcons();
+          }
+        };
+
+        img.src = imageSrc;
+      };
+
+      window.closeCoverWarpModal = function() {
+        const warpModal = document.getElementById("cover-warp-modal");
+        if (warpModal) {
+          warpModal.classList.add("hidden");
+          warpModal.classList.remove("flex");
+        }
+
+        // Return to cover camera modal
+        const camModal = document.getElementById("cover-camera-modal");
+        if (camModal) {
+          camModal.classList.remove("hidden");
+          camModal.classList.add("flex");
+        }
+        
+        // Re-enable camera tab or whichever was chosen
+        startCoverCameraStream();
+      };
+
+      function updateWarpPolygon() {
+        const polygon = document.getElementById("warp-polygon");
+        if (polygon) {
+          polygon.setAttribute("points", `
+            ${warpPins.tl.x},${warpPins.tl.y} 
+            ${warpPins.tr.x},${warpPins.tr.y} 
+            ${warpPins.br.x},${warpPins.br.y} 
+            ${warpPins.bl.x},${warpPins.bl.y}
+          `);
+        }
+      }
+
+      function initPinDragging() {
+        const pinIds = ["tl", "tr", "bl", "br"];
+        pinIds.forEach(id => {
+          const pinEl = document.getElementById(`warp-pin-${id}`);
+          if (!pinEl) return;
+
+          let isDragging = false;
+
+          // Standard pointerdown event
+          pinEl.onpointerdown = function(e) {
+            e.preventDefault();
+            pinEl.setPointerCapture(e.pointerId);
+            isDragging = true;
+          };
+
+          // Standard pointermove event
+          pinEl.onpointermove = function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+
+            const wrapper = document.getElementById("warp-image-wrapper");
+            const rect = wrapper.getBoundingClientRect();
+
+            // Calculate client-relative position
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+
+            // Constrain within display bounds
+            x = Math.max(0, Math.min(x, warpRenderWidth));
+            y = Math.max(0, Math.min(y, warpRenderHeight));
+
+            // Save state
+            warpPins[id].x = x;
+            warpPins[id].y = y;
+
+            // Style position
+            pinEl.style.left = `${x}px`;
+            pinEl.style.top = `${y}px`;
+
+            updateWarpPolygon();
+          };
+
+          // Handle capture release
+          const stopDrag = function(e) {
+            if (isDragging) {
+              pinEl.releasePointerCapture(e.pointerId);
+              isDragging = false;
+            }
+          };
+
+          pinEl.onpointerup = stopDrag;
+          pinEl.onpointercancel = stopDrag;
+        });
+      }
+
+      window.confirmWarp = function() {
+        const loadingOverlay = document.getElementById("warp-loading-overlay");
+        if (loadingOverlay) loadingOverlay.classList.remove("hidden");
+
+        const checkOpenCv = () => {
+          if (typeof cv !== "undefined" && cv.Mat && cv.getPerspectiveTransform) {
+            try {
+              executePerspectiveWarp();
+            } catch (err) {
+              console.error("OpenCV Warp Error:", err);
+              alert("Erro ao ajustar perspectiva com OpenCV: " + err.message);
+              if (loadingOverlay) loadingOverlay.classList.add("hidden");
+            }
+          } else {
+            console.log("Aguardando carregamento do OpenCV.js...");
+            setTimeout(checkOpenCv, 250);
+          }
+        };
+
+        checkOpenCv();
+      };
+
+      function executePerspectiveWarp() {
+        const imgElement = document.getElementById("warp-source-img");
+        if (!imgElement) return;
+
+        // Create a canvas at natural image size to get the high-resolution source image
+        // and ensure cv.imread reads at the 100% natural resolution.
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = warpNaturalWidth;
+        tempCanvas.height = warpNaturalHeight;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.drawImage(imgElement, 0, 0, warpNaturalWidth, warpNaturalHeight);
+
+        // Read source Mat from natural-size canvas
+        let src = cv.imread(tempCanvas);
+
+        // Get actual rendered bounding rect for ultra-precise scale calculation
+        const rect = imgElement.getBoundingClientRect();
+        const displayW = rect.width || warpRenderWidth || 1;
+        const displayH = rect.height || warpRenderHeight || 1;
+
+        // Convert coordinates from display screen to original high-res image coordinates
+        const scaleX = warpNaturalWidth / displayW;
+        const scaleY = warpNaturalHeight / displayH;
+
+        const srcCoords = [
+          warpPins.tl.x * scaleX, warpPins.tl.y * scaleY,
+          warpPins.tr.x * scaleX, warpPins.tr.y * scaleY,
+          warpPins.br.x * scaleX, warpPins.br.y * scaleY,
+          warpPins.bl.x * scaleX, warpPins.bl.y * scaleY
+        ];
+
+        // Setup OpenCV source points Mat (4 rows, 1 col, 2 channels for x,y points)
+        let srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, srcCoords);
+
+        // Target rectangular cover is 600x900 (standard book ratio 2:3)
+        const targetW = 600;
+        const targetH = 900;
+
+        let dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          0, 0,
+          targetW, 0,
+          targetW, targetH,
+          0, targetH
+        ]);
+
+        // Get Perspective Transform matrix
+        let M = cv.getPerspectiveTransform(srcPts, dstPts);
+
+        // Warp
+        let dst = new cv.Mat();
+        let dsize = new cv.Size(targetW, targetH);
+        cv.warpPerspective(
+          src, 
+          dst, 
+          M, 
+          dsize, 
+          cv.INTER_LINEAR, 
+          cv.BORDER_CONSTANT, 
+          new cv.Scalar()
+        );
+
+        // Render to virtual canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = targetW;
+        canvas.height = targetH;
+        cv.imshow(canvas, dst);
+
+        // Output as Data URL (Base64 JPEG)
+        const warpedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+        // Clean up memory
+        src.delete();
+        srcPts.delete();
+        dstPts.delete();
+        M.delete();
+        dst.delete();
+
+        // Save result and update preview in manual book register form
+        const coverInput = document.getElementById("form-cover");
+        if (coverInput) {
+          coverInput.value = warpedBase64;
+          window.handleCoverInput(warpedBase64);
+        }
+
+        // Close loading and both modals!
+        const loadingOverlay = document.getElementById("warp-loading-overlay");
+        if (loadingOverlay) loadingOverlay.classList.add("hidden");
+
+        const warpModal = document.getElementById("cover-warp-modal");
+        if (warpModal) {
+          warpModal.classList.add("hidden");
+          warpModal.classList.remove("flex");
+        }
+
+        const camModal = document.getElementById("cover-camera-modal");
+        if (camModal) {
+          camModal.classList.add("hidden");
+          camModal.classList.remove("flex");
+        }
+      }
+
       window.captureCoverImage = function() {
         const video = document.getElementById("cover-video");
         if (!video || !coverCameraStream) return;
 
         try {
           const canvas = document.createElement("canvas");
-          const targetWidth = 600;
-          const targetHeight = 900;
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
 
           const ctx = canvas.getContext("2d");
           if (ctx) {
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
-
-            let cropWidth = videoHeight * (2 / 3);
-            let cropHeight = videoHeight;
-            let startX = (videoWidth - cropWidth) / 2;
-            let startY = 0;
-
-            if (cropWidth > videoWidth) {
-              cropWidth = videoWidth;
-              cropHeight = videoWidth * (3 / 2);
-              startX = 0;
-              startY = (videoHeight - cropHeight) / 2;
-            }
-
-            ctx.drawImage(
-              video,
-              startX, startY, cropWidth, cropHeight,
-              0, 0, targetWidth, targetHeight
-            );
-
-            const base64Img = canvas.toDataURL("image/jpeg", 0.75);
-            
-            const coverInput = document.getElementById("form-cover");
-            if (coverInput) {
-              coverInput.value = base64Img;
-              window.handleCoverInput(base64Img);
-            }
-            window.closeCoverCameraModal();
+            ctx.drawImage(video, 0, 0);
+            const base64Img = canvas.toDataURL("image/jpeg", 0.85);
+            window.openCoverWarpModal(base64Img);
           }
         } catch (err) {
           console.error("Capture cover error:", err);
@@ -2860,44 +3469,7 @@
         const reader = new FileReader();
         reader.onload = function() {
           if (typeof reader.result === "string") {
-            const img = new Image();
-            img.onload = function() {
-              const canvas = document.createElement("canvas");
-              const targetWidth = 600;
-              const targetHeight = 900;
-              canvas.width = targetWidth;
-              canvas.height = targetHeight;
-
-              const ctx = canvas.getContext("2d");
-              if (ctx) {
-                let cropWidth = img.height * (2 / 3);
-                let cropHeight = img.height;
-                let startX = (img.width - cropWidth) / 2;
-                let startY = 0;
-
-                if (cropWidth > img.width) {
-                  cropWidth = img.width;
-                  cropHeight = img.width * (3 / 2);
-                  startX = 0;
-                  startY = (img.height - cropHeight) / 2;
-                }
-
-                ctx.drawImage(
-                  img,
-                  startX, startY, cropWidth, cropHeight,
-                  0, 0, targetWidth, targetHeight
-                );
-
-                const compressedBase64 = canvas.toDataURL("image/jpeg", 0.75);
-                const coverInput = document.getElementById("form-cover");
-                if (coverInput) {
-                  coverInput.value = compressedBase64;
-                  window.handleCoverInput(compressedBase64);
-                }
-                window.closeCoverCameraModal();
-              }
-            };
-            img.src = reader.result;
+            window.openCoverWarpModal(reader.result);
           }
         };
         reader.readAsDataURL(file);
