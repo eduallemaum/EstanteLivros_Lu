@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Book } from '../types';
-import { X, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Loader2, Search } from 'lucide-react';
 
 interface BookModalProps {
   isOpen: boolean;
@@ -26,6 +26,11 @@ export const BookModal: React.FC<BookModalProps> = ({
   const [coverImage, setCoverImage] = useState('');
   const [isSearchingCover, setIsSearchingCover] = useState(false);
   const [error, setError] = useState('');
+  
+  // AI Auto-Prefill States
+  const [aiQuery, setAiQuery] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiCandidates, setAiCandidates] = useState<any[]>([]);
 
   useEffect(() => {
     if (bookToEdit) {
@@ -46,6 +51,9 @@ export const BookModal: React.FC<BookModalProps> = ({
       setCoverImage('');
     }
     setError('');
+    setAiQuery('');
+    setAiCandidates([]);
+    setIsAiLoading(false);
   }, [bookToEdit, isOpen]);
 
   if (!isOpen) return null;
@@ -79,6 +87,66 @@ export const BookModal: React.FC<BookModalProps> = ({
       setError('Falha ao buscar capa.');
     } finally {
       setIsSearchingCover(false);
+    }
+  };
+
+  const handleAiPrefill = async () => {
+    if (!aiQuery.trim()) {
+      setError('Por favor, digite um ISBN ou o título do livro para preencher.');
+      return;
+    }
+    setIsAiLoading(true);
+    setError('');
+    setAiCandidates([]);
+    try {
+      const response = await fetch('/api/book-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: aiQuery.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Não foi possível buscar as informações do livro.');
+      }
+
+      const data = await response.json();
+      if (data && data.books && data.books.length > 0) {
+        setAiCandidates(data.books);
+      } else {
+        throw new Error('Nenhuma edição correspondente foi localizada pelo assistente IA.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Falha ao buscar dados do livro via IA.');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleSelectCandidate = async (book: any) => {
+    setTitle(book.title || '');
+    setAuthor(book.author || '');
+    setGenre(book.genre || '');
+    setPages(book.pages || '');
+    setSynopsis(book.synopsis || '');
+    setStatus(book.status || 'Quero Ler');
+    setAiCandidates([]); // clear the candidates list after selecting
+
+    // Tenta buscar a capa do livro baseado no título e autor selecionados
+    try {
+      const q = encodeURIComponent(`intitle:${book.title}${book.author ? ` inauthor:${book.author}` : ''}`);
+      const resCover = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1`);
+      if (resCover.ok) {
+        const dataCover = await resCover.json();
+        if (dataCover.items && dataCover.items.length > 0) {
+          const thumbnail = dataCover.items[0].volumeInfo?.imageLinks?.thumbnail;
+          if (thumbnail) {
+            setCoverImage(thumbnail.replace(/^http:/, 'https:'));
+          }
+        }
+      }
+    } catch (coverErr) {
+      console.warn('Erro ao buscar capa após seleção da edição:', coverErr);
     }
   };
 
@@ -153,6 +221,101 @@ export const BookModal: React.FC<BookModalProps> = ({
             <div className="bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-2xl flex gap-2 items-center text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* AI Auto-Prefill Magic Section */}
+          {!bookToEdit?.id && (
+            <div className="bg-gradient-to-br from-indigo-50 to-violet-50/50 border border-indigo-100 p-5 rounded-2xl space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-indigo-950 text-xs font-extrabold uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                  <span>Pesquisar Obra com IA</span>
+                </div>
+                <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                  Recomendado
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                Digite o número do <strong>ISBN</strong> ou o <strong>título da obra</strong> (com ou sem autor) e clique em <strong>Pesquisar</strong> para listar e selecionar edições disponíveis.
+              </p>
+              
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-indigo-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    id="input-ai-prefill-query"
+                    type="text"
+                    placeholder="Ex: 9788575226315 ou O Nome da Rosa"
+                    value={aiQuery}
+                    onChange={(e) => setAiQuery(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-indigo-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 text-xs text-slate-850 transition-all placeholder:text-slate-400 font-medium bg-white"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAiPrefill();
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  id="btn-ai-prefill-submit"
+                  type="button"
+                  onClick={handleAiPrefill}
+                  disabled={isAiLoading}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-sm hover:shadow active:scale-95 disabled:pointer-events-none"
+                >
+                  {isAiLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Pesquisando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Pesquisar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Candidates selection */}
+              {aiCandidates.length > 0 && (
+                <div className="mt-4 space-y-2.5 border-t border-indigo-150/50 pt-3.5">
+                  <div className="text-[11px] font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1">
+                    <span>💡 Clique na edição desejada para preencher:</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {aiCandidates.map((book, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectCandidate(book)}
+                        className="w-full text-left p-3 rounded-xl border border-indigo-100 hover:border-indigo-300 bg-white hover:bg-indigo-50/20 transition-all focus:outline-none flex flex-col justify-between shadow-sm hover:shadow group active:scale-[0.99]"
+                      >
+                        <div className="flex justify-between items-start w-full gap-2">
+                          <span className="font-bold text-slate-800 text-xs group-hover:text-indigo-700 transition-colors">
+                            {book.title}
+                          </span>
+                          {book.isbn && (
+                            <span className="text-[9px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0">
+                              ISBN: {book.isbn}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          de {book.author}
+                        </div>
+                        {book.editionInfo && (
+                          <div className="text-[10px] text-indigo-600 mt-1.5 font-semibold italic">
+                            {book.editionInfo}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
