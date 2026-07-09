@@ -143,6 +143,82 @@ Retorne obrigatoriamente uma lista contendo exatamente este único livro estrutu
   }
 });
 
+// API to prefill book details by ISBN or Title using Gemini 2.5 Flash (gemini-3.5-flash)
+app.post("/api/book-info", async (req, res) => {
+  try {
+    const { query: searchQuery } = req.body;
+
+    if (!searchQuery || !searchQuery.trim()) {
+      return res.status(400).json({ error: "Nenhum ISBN ou título do livro fornecido." });
+    }
+
+    const client = getGeminiClient();
+
+    const promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
+O usuário inseriu a seguinte consulta para encontrar um livro (pode ser um número de ISBN de 10 ou 13 dígitos, ou o título do livro com ou sem autor):
+
+Consulta: "${searchQuery.trim()}"
+
+Pesquise e encontre até 3 edições/versões diferentes ou livros correspondentes aproximados para esta consulta (por exemplo, diferentes editoras, edições de bolso, capa dura, ou edições nacionais).
+Para cada livro/edição encontrado, forneça os seguintes metadados em português brasileiro de forma completa, calorosa e profissional:
+1. title: O título oficial e correto do livro (em português brasileiro, se houver edição nacional).
+2. author: O autor ou autores principais do livro (nome correto).
+3. genre: O gênero literário correspondente (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.).
+4. pages: O número total de páginas exato ou o mais próximo possível da realidade para essa edição.
+5. synopsis: Uma sinopse breve, interessante, calorosa e envolvendo o livro em português brasileiro (sem dar spoilers do final).
+6. status: Use obrigatoriamente 'Quero Ler' como padrão.
+7. isbn: O código ISBN de 13 dígitos numéricos correto para esta edição específica (apenas números, sem traços ou espaços). Se nenhum for encontrado, deixe este campo vazio.
+8. editionInfo: Um rótulo curto identificando esta edição para ajudar o usuário a escolher (ex: 'Editora Intrínseca, 2012', 'Capa Dura - HarperCollins, 2020', 'Edição Clássica', etc.).
+
+Retorne obrigatoriamente a lista de até 3 edições/livros no formato JSON estruturado conforme o esquema de objeto contendo uma lista sob a chave 'books'.`;
+
+    const response = await generateContentWithRetry(client, {
+      model: "gemini-3.5-flash",
+      contents: [{ text: promptText }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            books: {
+              type: Type.ARRAY,
+              description: "Lista de até 3 edições do livro correspondentes à pesquisa.",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING, description: "Título correto do livro" },
+                  author: { type: Type.STRING, description: "Autor(a) ou autores do livro" },
+                  genre: { type: Type.STRING, description: "Gênero literário correspondente" },
+                  pages: { type: Type.INTEGER, description: "Número de páginas total para esta edição" },
+                  synopsis: { type: Type.STRING, description: "Sinopse calorosa e cativante em português" },
+                  status: { type: Type.STRING, description: "Status padrão de leitura 'Quero Ler'" },
+                  isbn: { type: Type.STRING, description: "Código ISBN de 10 ou 13 dígitos, apenas números, ou vazio" },
+                  editionInfo: { type: Type.STRING, description: "Editora, ano ou tipo de edição curta" }
+                },
+                required: ["title", "author", "genre", "pages", "synopsis", "status", "isbn", "editionInfo"]
+              }
+            }
+          },
+          required: ["books"]
+        }
+      }
+    });
+
+    const textOutput = response.text;
+    if (!textOutput) {
+      throw new Error("O Gemini não retornou nenhuma edição do livro.");
+    }
+
+    const result = JSON.parse(textOutput.trim());
+    return res.json({ books: result.books || [] });
+  } catch (error: any) {
+    console.error("Erro ao buscar detalhes do livro via Gemini:", error);
+    return res.status(500).json({
+      error: error.message || "Ocorreu um erro ao obter os detalhes do livro com Inteligência Artificial."
+    });
+  }
+});
+
 // Setup Vite middleware for development or serve built files in production
 async function setupServer() {
   if (process.env.NODE_ENV !== "production") {
