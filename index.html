@@ -378,6 +378,130 @@
       </button>
     </div>
 
+    <!-- BOOK DETAILS MODAL -->
+    <div id="book-details-modal" class="fixed inset-0 z-50 items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity hidden">
+      <div class="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-xl flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+        
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div class="flex items-center gap-2">
+            <span id="detail-status-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg shadow-sm"></span>
+            <span class="text-xs text-slate-400 font-medium font-mono" id="detail-isbn-label"></span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="detail-edit-btn" class="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors" title="Editar Livro">
+              <i data-lucide="edit-2" class="w-4 h-4"></i>
+            </button>
+            <button onclick="closeBookDetailsModal()" class="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Detail Body -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          <!-- Split Layout Cover + Info -->
+          <div class="flex flex-col sm:flex-row gap-6">
+            
+            <!-- Cover Column -->
+            <div class="flex flex-col items-center gap-3 shrink-0 mx-auto sm:mx-0">
+              <div class="relative w-36 h-52 rounded-r-xl shadow-lg overflow-hidden bg-slate-100 border-l-4 border-black/10 flex-shrink-0">
+                <img id="detail-cover-img" src="" referrerpolicy="no-referrer" class="w-full h-full object-cover" alt="Capa" />
+                <div id="detail-cover-fallback" class="absolute inset-0 bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-900 flex flex-col justify-between p-4 border-l-4 border-black/10 select-none text-center hidden">
+                  <div class="text-[10px] uppercase tracking-wider font-semibold opacity-70" id="detail-fallback-genre">Literatura</div>
+                  <div class="flex-1 flex flex-col justify-center my-1">
+                    <h4 class="font-serif text-[11px] font-bold leading-tight line-clamp-3 mb-1" id="detail-fallback-title">Sem Título</h4>
+                    <p class="text-[9px] opacity-80 italic truncate" id="detail-fallback-author">Sem Autor</p>
+                  </div>
+                  <div class="flex justify-center items-center">
+                    <div class="w-3 h-3 rounded-full bg-indigo-400 opacity-60"></div>
+                  </div>
+                </div>
+                <div class="absolute top-0 left-0 w-1.5 h-full bg-black/10 rounded-r-sm pointer-events-none"></div>
+                <div class="absolute top-0 left-3 w-px h-full bg-white/20 pointer-events-none"></div>
+              </div>
+              
+              <!-- Custom Kittens Rating Container -->
+              <div class="flex flex-col items-center gap-1.5 mt-2 bg-slate-50/80 px-4 py-2.5 rounded-2xl border border-slate-100 w-full">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Avaliação da Lu</span>
+                <div class="flex items-center gap-1 text-slate-300" id="detail-rating-container">
+                  <!-- Cat faces dynamically injected -->
+                </div>
+                <span id="detail-rating-text" class="text-xs font-semibold text-slate-500 mt-0.5">Sem avaliação</span>
+              </div>
+            </div>
+
+            <!-- Meta Column -->
+            <div class="flex-1 min-w-0 flex flex-col justify-between">
+              <div>
+                <h1 id="detail-title" class="font-sans font-black text-slate-800 text-xl md:text-2xl leading-tight"></h1>
+                <p id="detail-author" class="text-base text-slate-500 font-medium mt-1">por <span class="text-slate-700 font-semibold" id="detail-author-name"></span></p>
+                
+                <div class="flex flex-wrap gap-2 mt-3.5">
+                  <span id="detail-genre-badge" class="text-xs px-3 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium border border-slate-200/40"></span>
+                  <span id="detail-pages-badge" class="text-xs px-3 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium border border-slate-200/40"></span>
+                </div>
+
+                <div class="border-t border-slate-100 mt-5 pt-4">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Sinopse do Livro</h3>
+                  <p id="detail-synopsis" class="text-slate-600 text-sm leading-relaxed text-justify whitespace-pre-line font-medium bg-slate-50/50 p-3.5 rounded-2xl border border-slate-50"></p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Recommendations Section -->
+          <div class="border-t border-slate-100 pt-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <div class="p-1 bg-violet-50 text-[#7986cb] rounded-lg">
+                  <i data-lucide="sparkles" class="w-4 h-4 animate-pulse"></i>
+                </div>
+                <h3 class="font-sans font-bold text-slate-800 text-sm md:text-base">Sugestões & Novidades com IA</h3>
+              </div>
+              <span class="text-[10px] bg-indigo-50 text-[#7986cb] px-2.5 py-1 rounded-full font-bold">Curadoria da Lu</span>
+            </div>
+
+            <!-- Loading State -->
+            <div id="recs-loading" class="space-y-3">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="h-32 bg-slate-50/60 border border-slate-100/50 rounded-2xl p-4 flex flex-col justify-between animate-pulse">
+                  <div class="space-y-2">
+                    <div class="h-4 bg-slate-200 rounded w-2/3"></div>
+                    <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+                  </div>
+                  <div class="h-8 bg-slate-200 rounded-xl w-full mt-2"></div>
+                </div>
+                <div class="h-32 bg-slate-50/60 border border-slate-100/50 rounded-2xl p-4 flex flex-col justify-between animate-pulse">
+                  <div class="space-y-2">
+                    <div class="h-4 bg-slate-200 rounded w-2/3"></div>
+                    <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+                  </div>
+                  <div class="h-8 bg-slate-200 rounded-xl w-full mt-2"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recommendations Grid Container -->
+            <div id="recs-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+              <!-- Recommedations cards dynamically injected -->
+            </div>
+            
+            <!-- Recommendations Error -->
+            <div id="recs-error" class="p-4 bg-rose-50 border border-rose-100 text-rose-800 text-xs rounded-2xl hidden flex items-center justify-between gap-2">
+              <span id="recs-error-msg">Não foi possível gerar recomendações de leitura para este livro.</span>
+              <button onclick="retryRecommendations()" class="px-3 py-1 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-lg font-bold transition-all">Tentar novamente</button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
     <!-- BOOK MODAL -->
     <div id="book-modal" class="fixed inset-0 z-50 items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity hidden">
       <div class="bg-white w-full sm:max-w-md md:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
@@ -1398,17 +1522,29 @@
               `;
             }
 
+            let listRatingHTML = "";
+            if (book.rating && book.rating > 0) {
+              listRatingHTML = `
+                <div class="flex items-center gap-0.5 mt-1 text-amber-500" title="Avaliação: ${book.rating} de 5 gatinhos">
+                  ${Array.from({ length: 5 }, (_, i) => `
+                    <i data-lucide="cat" class="w-3 h-3 ${i < book.rating ? 'fill-amber-400 text-amber-500' : 'text-slate-200'}"></i>
+                  `).join("")}
+                </div>
+              `;
+            }
+
             return `
               <div id="book-row-${book.id}" class="py-3 flex items-center justify-between gap-4 group hover:bg-slate-50/70 px-2 rounded-2xl transition-all border-b border-slate-50 last:border-0">
-                <div class="flex-1 min-w-0 flex items-center gap-3">
+                <div onclick="openBookDetailsModal('${book.id}')" class="flex-1 min-w-0 flex items-center gap-3 cursor-pointer group/title">
                   ${statusIconHTML}
-                  <div class="min-w-0">
-                    <h4 class="font-sans font-bold text-slate-800 text-sm sm:text-base leading-snug truncate group-hover:text-[#7986cb] transition-colors">${book.title}</h4>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="font-sans font-bold text-slate-800 text-sm sm:text-base leading-snug truncate group-hover/title:text-[#7986cb] group-hover/title:underline transition-colors">${book.title}</h4>
                     <p class="text-xs text-slate-400 font-medium truncate mt-0.5">
                       por <span class="text-slate-600 font-semibold">${book.author}</span> 
                       ${book.genre ? `• <span class="text-slate-500 font-semibold">${book.genre}</span>` : ""}
                       ${book.pages > 0 ? `• <span class="text-slate-500 font-medium">${book.pages} pág.</span>` : ""}
                     </p>
+                    ${listRatingHTML}
                   </div>
                 </div>
                 <div class="flex items-center gap-1 flex-shrink-0">
@@ -1428,16 +1564,16 @@
             const hashVal = getHash(book.title);
             const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
             
-            // Render Cover HTML
+            // Render Cover HTML (clickable to details)
             let coverHTML = "";
             if (book.coverImage && (book.coverImage.startsWith("http") || book.coverImage.startsWith("data:image"))) {
               coverHTML = `
-                <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10">
+                <div onclick="openBookDetailsModal('${book.id}')" class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 overflow-hidden bg-slate-100 border-l-4 border-black/10 cursor-pointer group/cover transition-all hover:scale-105 active:scale-95 duration-200">
                   <img
                     src="${book.coverImage}"
                     referrerpolicy="no-referrer"
                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    class="w-full h-full object-cover transition-transform duration-300 group-hover/cover:scale-110"
                     alt="${book.title}"
                   />
                   <!-- Fallback gradient hidden by default, shown if image breaks -->
@@ -1457,7 +1593,7 @@
               `;
             } else {
               coverHTML = `
-                <div class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 flex flex-col justify-between p-3 border-l-4 border-black/10 select-none bg-gradient-to-br ${theme.bg} text-slate-800">
+                <div onclick="openBookDetailsModal('${book.id}')" class="relative w-24 h-36 rounded-r-md shadow-md flex-shrink-0 flex flex-col justify-between p-3 border-l-4 border-black/10 select-none bg-gradient-to-br ${theme.bg} text-slate-800 cursor-pointer transition-all hover:scale-105 active:scale-95 duration-200">
                   <div class="absolute top-0 left-0 w-1 h-full bg-black/5 rounded-r-sm"></div>
                   <div class="absolute top-0 left-2 w-px h-full bg-white/30"></div>
                   <div class="text-[9px] uppercase tracking-wider font-semibold opacity-70 truncate">${book.genre || 'Literatura'}</div>
@@ -1515,6 +1651,17 @@
               `;
             }
 
+            let ratingHTML = "";
+            if (book.rating && book.rating > 0) {
+              ratingHTML = `
+                <div class="flex items-center gap-0.5 mt-1 text-amber-500" title="Avaliação: ${book.rating} de 5 gatinhos">
+                  ${Array.from({ length: 5 }, (_, i) => `
+                    <i data-lucide="cat" class="w-3.5 h-3.5 ${i < book.rating ? 'fill-amber-400 text-amber-500' : 'text-slate-200'}"></i>
+                  `).join("")}
+                </div>
+              `;
+            }
+
             return `
               <div id="book-card-${book.id}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300 flex flex-col gap-4 relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#EDE7F6]/30 via-transparent to-transparent rounded-tr-2xl pointer-events-none"></div>
@@ -1523,15 +1670,16 @@
                   ${coverHTML}
                   
                   <div class="flex-1 min-w-0 flex flex-col justify-between h-36">
-                    <div>
-                      <h3 class="font-sans font-bold text-slate-800 text-base leading-snug line-clamp-2">${book.title}</h3>
+                    <div onclick="openBookDetailsModal('${book.id}')" class="cursor-pointer group/title">
+                      <h3 class="font-sans font-bold text-slate-800 text-base leading-snug line-clamp-2 group-hover/title:text-[#7986cb] group-hover/title:underline transition-colors">${book.title}</h3>
                       <p class="text-sm text-slate-500 font-medium truncate mt-0.5">por ${book.author}</p>
+                      ${ratingHTML}
                       <div class="flex flex-wrap gap-1.5 mt-2">
                         <span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.genre || 'Não classificado'}</span>
                         ${book.pages > 0 ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.pages} pág.</span>` : ""}
                       </div>
                     </div>
-
+ 
                     <div class="flex items-center justify-between mt-auto">
                       ${statusBadge}
                       
@@ -1749,6 +1897,264 @@
           state.isReviewMode = false;
           state.reviewQueue = [];
           renderApp();
+        }
+      };
+
+      // BOOK DETAILS MODAL LOGIC & RATINGS
+      state.viewingBookId = null;
+      const recommendationsCache = {};
+
+      window.openBookDetailsModal = function(bookId) {
+        const book = state.books.find((b) => b.id === bookId);
+        if (!book) return;
+        
+        state.viewingBookId = bookId;
+        
+        // Status Badge and details
+        const statusBadge = document.getElementById("detail-status-badge");
+        const isbnLabel = document.getElementById("detail-isbn-label");
+        
+        if (statusBadge) {
+          statusBadge.innerText = book.status || "Quero Ler";
+          // reset color classes
+          statusBadge.className = "px-2.5 py-1 text-xs font-bold rounded-lg shadow-sm";
+          if (book.status === "Lido") {
+            statusBadge.classList.add("bg-emerald-50", "text-emerald-700", "border", "border-emerald-200/40");
+          } else if (book.status === "Lendo") {
+            statusBadge.classList.add("bg-[#EDE7F6]", "text-[#7986cb]", "border", "border-[#b39ddb]/30");
+          } else {
+            statusBadge.classList.add("bg-amber-50", "text-amber-700", "border", "border-amber-200/40");
+          }
+        }
+        
+        if (isbnLabel) {
+          isbnLabel.innerText = book.isbn ? `ISBN: ${book.isbn}` : "Sem ISBN";
+        }
+        
+        // Edit button
+        const editBtn = document.getElementById("detail-edit-btn");
+        if (editBtn) {
+          editBtn.onclick = function() {
+            window.closeBookDetailsModal();
+            window.openEditBookModal(bookId);
+          };
+        }
+        
+        // Cover Column
+        const coverImg = document.getElementById("detail-cover-img");
+        const coverFallback = document.getElementById("detail-cover-fallback");
+        
+        if (book.coverImage && (book.coverImage.startsWith("http") || book.coverImage.startsWith("data:image"))) {
+          coverImg.src = book.coverImage;
+          coverImg.classList.remove("hidden");
+          coverFallback.classList.add("hidden");
+          
+          coverImg.onerror = function() {
+            coverImg.classList.add("hidden");
+            setupFallbackCover(book, coverFallback);
+          };
+        } else {
+          coverImg.classList.add("hidden");
+          setupFallbackCover(book, coverFallback);
+        }
+        
+        // Render Rating Kittens
+        updateDetailsModalRating(book.rating || 0);
+        
+        // Fill core metadata fields
+        document.getElementById("detail-title").innerText = book.title || "Sem Título";
+        document.getElementById("detail-author-name").innerText = book.author || "Sem Autor";
+        
+        const genreBadge = document.getElementById("detail-genre-badge");
+        genreBadge.innerText = book.genre || "Não classificado";
+        
+        const pagesBadge = document.getElementById("detail-pages-badge");
+        pagesBadge.innerText = book.pages > 0 ? `${book.pages} páginas` : "Páginas não informadas";
+        
+        const synopsisEl = document.getElementById("detail-synopsis");
+        synopsisEl.innerText = book.synopsis || "Nenhuma sinopse disponível para este livro.";
+        
+        // Show modal container
+        const modal = document.getElementById("book-details-modal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        
+        // Fetch recommendations via API
+        window.fetchRecommendations(book.title, book.author, book.genre);
+        
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      function setupFallbackCover(book, fallbackEl) {
+        if (!fallbackEl) return;
+        fallbackEl.classList.remove("hidden");
+        const fallbackTitle = document.getElementById("detail-fallback-title");
+        const fallbackAuthor = document.getElementById("detail-fallback-author");
+        const fallbackGenre = document.getElementById("detail-fallback-genre");
+        
+        if (fallbackTitle) fallbackTitle.innerText = book.title || "Sem Título";
+        if (fallbackAuthor) fallbackAuthor.innerText = book.author || "Sem Autor";
+        if (fallbackGenre) fallbackGenre.innerText = book.genre || "Literatura";
+        
+        // Apply random but stable pastel background based on title hash
+        const hashVal = getHash(book.title || "");
+        const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
+        
+        fallbackEl.className = `absolute inset-0 bg-gradient-to-br ${theme.bg} text-slate-800 flex flex-col justify-between p-4 border-l-4 border-black/10 select-none text-center`;
+      }
+
+      window.closeBookDetailsModal = function() {
+        state.viewingBookId = null;
+        const modal = document.getElementById("book-details-modal");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      };
+
+      window.setBookRating = async function(bookId, rating) {
+        const book = state.books.find((b) => b.id === bookId);
+        if (!book) return;
+        
+        book.rating = rating;
+        
+        // Update UI immediately (the cat stars inside the details modal)
+        updateDetailsModalRating(rating);
+        
+        try {
+          if (!bookId.startsWith("local_")) {
+            const bookRef = doc(db, "books", bookId);
+            await updateDoc(bookRef, {
+              rating: rating,
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          }
+        } catch (err) {
+          console.warn("Firestore rating save failed, saved locally:", err);
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+        }
+        
+        // Render main list/grid views to reflect changes
+        renderApp();
+      };
+
+      function updateDetailsModalRating(rating) {
+        const container = document.getElementById("detail-rating-container");
+        const ratingText = document.getElementById("detail-rating-text");
+        if (!container) return;
+        
+        let html = "";
+        for (let i = 1; i <= 5; i++) {
+          const active = i <= rating;
+          html += `
+            <button onclick="window.setBookRating('${state.viewingBookId}', ${i})" class="focus:outline-none transition-transform hover:scale-125 duration-100 p-0.5" title="Avaliar com ${i} gatinhos">
+              <i data-lucide="cat" class="w-6 h-6 ${active ? 'fill-amber-400 text-amber-500' : 'text-slate-300 hover:text-amber-300'}"></i>
+            </button>
+          `;
+        }
+        container.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
+        
+        const ratingLabels = {
+          0: "Sem avaliação",
+          1: "Muito ruim (1/5 😿)",
+          2: "Regular (2/5 😾)",
+          3: "Bom (3/5 🐱)",
+          4: "Muito bom (4/5 😸)",
+          5: "Favorito! (5/5 😻)"
+        };
+        ratingText.innerText = ratingLabels[rating] || "Sem avaliação";
+      }
+
+      window.fetchRecommendations = async function(title, author, genre) {
+        const loadingEl = document.getElementById("recs-loading");
+        const containerEl = document.getElementById("recs-container");
+        const errorEl = document.getElementById("recs-error");
+        
+        if (!loadingEl || !containerEl || !errorEl) return;
+
+        loadingEl.classList.remove("hidden");
+        containerEl.classList.add("hidden");
+        errorEl.classList.add("hidden");
+        
+        const cacheKey = `${title}||${author}||${genre}`;
+        if (recommendationsCache[cacheKey]) {
+          renderRecommendations(recommendationsCache[cacheKey]);
+          return;
+        }
+        
+        try {
+          const response = await fetch("/api/recommendations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, author, genre })
+          });
+          
+          if (!response.ok) {
+            throw new Error("Falha ao carregar sugestões.");
+          }
+          
+          const data = await response.json();
+          if (data && data.recommendations && Array.isArray(data.recommendations)) {
+            recommendationsCache[cacheKey] = data.recommendations;
+            renderRecommendations(data.recommendations);
+          } else {
+            throw new Error("Formato inválido de resposta do servidor.");
+          }
+        } catch (err) {
+          console.error("Erro ao obter recomendações do servidor:", err);
+          loadingEl.classList.add("hidden");
+          errorEl.classList.remove("hidden");
+          document.getElementById("recs-error-msg").innerText = "Não foi possível carregar sugestões personalizadas no momento.";
+        }
+      };
+
+      function renderRecommendations(recommendations) {
+        const loadingEl = document.getElementById("recs-loading");
+        const containerEl = document.getElementById("recs-container");
+        
+        if (!loadingEl || !containerEl) return;
+
+        loadingEl.classList.add("hidden");
+        containerEl.classList.remove("hidden");
+        
+        if (recommendations.length === 0) {
+          containerEl.innerHTML = `
+            <div class="col-span-full p-4 bg-slate-50 text-slate-500 text-xs text-center rounded-2xl">
+              Nenhuma recomendação disponível para este livro.
+            </div>
+          `;
+          return;
+        }
+        
+        containerEl.innerHTML = recommendations.map((rec) => {
+          const tagsHTML = (rec.tags || [])
+            .map(t => `<span class="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded">${t}</span>`)
+            .join("");
+            
+          return `
+            <div class="bg-slate-50/75 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
+              <div class="space-y-1.5">
+                <div class="flex items-start justify-between gap-2">
+                  <h4 class="font-sans font-bold text-slate-800 text-sm line-clamp-1">${rec.title}</h4>
+                  <span class="shrink-0 text-[10px] bg-indigo-50 text-[#7986cb] px-2 py-0.5 rounded font-bold">IA</span>
+                </div>
+                <p class="text-xs text-slate-500 font-medium italic">por ${rec.author}</p>
+                <p class="text-xs text-slate-600 leading-relaxed text-justify line-clamp-3" title="${rec.reason}">${rec.reason}</p>
+              </div>
+              
+              <div class="flex flex-wrap gap-1 mt-3">
+                ${tagsHTML}
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      window.retryRecommendations = function() {
+        const book = state.books.find((b) => b.id === state.viewingBookId);
+        if (book) {
+          window.fetchRecommendations(book.title, book.author, book.genre);
         }
       };
 
