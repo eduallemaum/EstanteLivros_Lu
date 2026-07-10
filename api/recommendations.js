@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { getAllUsers } from "./db.js";
 
 // Helper for exponential backoff retry on transient errors (503, 429, etc.)
 async function generateContentWithRetry(client, params, maxRetries = 3, initialDelay = 1500) {
@@ -36,7 +37,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Family-PIN"
   );
 
   if (req.method === "OPTIONS") {
@@ -45,6 +46,19 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed. Use POST." });
+  }
+
+  // Secure endpoints with X-Family-PIN header validation against Firestore users
+  const userPinHeader = req.headers["x-family-pin"];
+  if (!userPinHeader) {
+    return res.status(401).json({ error: "Acesso não autorizado. Código PIN ausente." });
+  }
+
+  const users = await getAllUsers(true);
+  const isValidUser = users.some(u => u.pin === userPinHeader.trim() && u.active);
+
+  if (!isValidUser) {
+    return res.status(401).json({ error: "Acesso não autorizado. Código PIN inválido ou inativo." });
   }
 
   try {

@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { getAllUsers, verifyPin, getAccessLogs, upsertUser, removeUser } from "./api/db.js";
 
 dotenv.config();
 
@@ -62,8 +63,134 @@ async function generateContentWithRetry(client: GoogleGenAI, params: any, maxRet
   }
 }
 
+// Middleware to secure APIs with family PIN validation against Firestore
+const validatePin = async (req: any, res: any, next: any) => {
+  const userPinHeader = req.headers["x-family-pin"] as string | undefined;
+  if (!userPinHeader) {
+    return res.status(401).json({ error: "Acesso não autorizado. Código PIN ausente." });
+  }
+
+  try {
+    const users = await getAllUsers(true);
+    const isValidUser = users.some(u => u.pin === userPinHeader.trim() && u.active);
+
+    if (!isValidUser) {
+      return res.status(401).json({ error: "Acesso não autorizado. Código PIN inválido ou inativo." });
+    }
+    next();
+  } catch (error) {
+    console.error("Middleware validatePin error:", error);
+    return res.status(500).json({ error: "Erro interno na verificação de permissões." });
+  }
+};
+
+// API to verify family member 6-digit PIN
+app.post("/api/verify-pin", async (req, res) => {
+  try {
+    const { username, pin } = req.body;
+
+    if (!username || !pin) {
+      return res.status(400).json({ error: "Nome de usuário e PIN de 6 dígitos são necessários." });
+    }
+
+    const result = await verifyPin(username, pin, req);
+
+    if (result.success && result.user) {
+      return res.json({ 
+        success: true, 
+        user: { 
+          username: result.user.username,
+          role: result.user.role,
+          avatar: result.user.avatar,
+          token: Buffer.from(`${result.user.username}:${pin}`).toString("base64") 
+        } 
+      });
+    }
+
+    return res.status(401).json({ error: result.error || "Código PIN incorreto." });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || "Erro interno no servidor de autenticação." });
+  }
+});
+
+// API for admin actions (get users & logs, update users, delete users)
+app.use("/api/admin", async (req: any, res: any, next: any) => {
+  const userPinHeader = req.headers["x-family-pin"] as string | undefined;
+  if (!userPinHeader) {
+    return res.status(401).json({ error: "Acesso administrativo não autorizado. PIN ausente." });
+  }
+
+  try {
+    const users = await getAllUsers(true);
+    const adminUser = users.find(u => u.role === "admin" && u.pin === userPinHeader.trim() && u.active);
+    
+    if (!adminUser) {
+      return res.status(403).json({ error: "Acesso administrativo negado. Código PIN de administrador incorreto ou inativo." });
+    }
+
+    req.adminUser = adminUser;
+    next();
+  } catch (error) {
+    return res.status(500).json({ error: "Erro interno na verificação de permissões de administrador." });
+  }
+});
+
+app.get("/api/admin", async (req: any, res: any) => {
+  try {
+    const allUsers = await getAllUsers(true); // admin can see PINs
+    const logs = await getAccessLogs();
+    res.json({
+      success: true,
+      users: allUsers,
+      logs
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Erro ao carregar dados do painel de administração." });
+  }
+});
+
+app.post("/api/admin", async (req: any, res: any) => {
+  try {
+    const { action, username, pin, role, avatar, active } = req.body;
+
+    if (!action) {
+      return res.status(400).json({ error: "Ação não especificada." });
+    }
+
+    if (action === "upsert") {
+      if (!username || !pin) {
+        return res.status(400).json({ error: "Nome de usuário e PIN são obrigatórios para salvar." });
+      }
+      if (pin.trim().length !== 6 || !/^\d+$/.test(pin.trim())) {
+        return res.status(400).json({ error: "O código PIN deve conter exatamente 6 dígitos numéricos." });
+      }
+
+      const result = await upsertUser(req.adminUser.username, username, pin, role, avatar, active);
+      if (result.success) {
+        return res.json({ success: true, message: `Perfil de ${username} atualizado com sucesso.` });
+      }
+      return res.status(500).json({ error: result.error });
+    }
+
+    if (action === "delete") {
+      if (!username) {
+        return res.status(400).json({ error: "Nome de usuário para exclusão não especificado." });
+      }
+      const result = await removeUser(username);
+      if (result.success) {
+        return res.json({ success: true, message: `Perfil de ${username} excluído.` });
+      }
+      return res.status(400).json({ error: result.error });
+    }
+
+    return res.status(400).json({ error: "Ação administrativa inválida." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Erro no processamento da ação administrativa." });
+  }
+});
+
 // API to scan books using Gemini 2.5 Flash (via 'gemini-3.5-flash' alias as per guidelines)
-app.post("/api/scan", async (req, res) => {
+app.post("/api/scan", validatePin, async (req, res) => {
   try {
     const { image, mimeType = "image/jpeg" } = req.body;
 
@@ -144,7 +271,7 @@ Retorne obrigatoriamente uma lista contendo exatamente este único livro estrutu
 });
 
 // API to prefill book details by ISBN or Title using Gemini 2.5 Flash (gemini-3.5-flash)
-app.post("/api/book-info", async (req, res) => {
+app.post("/api/book-info", validatePin, async (req, res) => {
   try {
     const { query: searchQuery } = req.body;
 
@@ -220,7 +347,7 @@ Retorne obrigatoriamente a lista de até 3 edições/livros no formato JSON estr
 });
 
 // API to generate dynamic reading suggestions based on current book metadata
-app.post("/api/recommendations", async (req, res) => {
+app.post("/api/recommendations", validatePin, async (req, res) => {
   try {
     const { title, author, genre } = req.body;
     if (!title || !title.trim()) {
