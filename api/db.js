@@ -202,11 +202,18 @@ export async function upsertUser(adminUser, username, pin, role, avatar, active 
     
     const userData = {
       username: username.trim(),
-      pin: pin.trim(),
       role: role || "user",
       avatar: avatar || "📖",
-      active: active === undefined ? true : active
+      active: active === undefined ? true : active,
+      pin: "000000" // default fallback
     };
+
+    const cleanPin = pin ? pin.trim() : "";
+    if (cleanPin !== "") {
+      userData.pin = cleanPin;
+    } else if (existing.exists()) {
+      userData.pin = existing.data().pin || "000000";
+    }
 
     await setDoc(userDocRef, userData);
     return { success: true };

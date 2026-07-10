@@ -257,7 +257,7 @@
           </div>
           <div class="flex flex-col min-w-0">
             <span id="sidebar-user-name" class="text-xs font-bold text-slate-700 truncate">Lu</span>
-            <span class="text-[9px] text-slate-400 font-semibold uppercase">Familiar</span>
+            <span id="sidebar-user-role" class="text-[9px] text-slate-400 font-semibold uppercase">Familiar</span>
           </div>
         </div>
         <button 
@@ -324,7 +324,7 @@
           >
             <i data-lucide="plus" class="w-5 h-5"></i>
           </button>
-          <div class="w-12 h-12 rounded-2xl bg-[#b39ddb] flex items-center justify-center text-white font-extrabold text-lg border-4 border-white shadow-sm" title="Jornalista Luciana 🐱">
+          <div id="header-user-avatar" class="w-12 h-12 rounded-2xl bg-[#b39ddb] flex items-center justify-center text-white font-extrabold text-lg border-4 border-white shadow-sm" title="Jornalista Luciana 🐱">
             🐱
           </div>
         </div>
@@ -3929,16 +3929,33 @@
           "Convidado": "📖"
         };
         const avatar = localStorage.getItem("estante_da_lu_avatar") || avatars[username] || "📖";
+        const role = localStorage.getItem("estante_da_lu_role") || "user";
         
+        let roleLabel = "Leitor";
+        if (role === "admin") {
+          roleLabel = (username === "Lu") ? "Moderadora" : "Moderador";
+        } else if (role === "visitor" || role === "guest") {
+          roleLabel = "Visita";
+        } else {
+          roleLabel = (username === "Lu") ? "Leitora" : "Leitor";
+        }
+
         const avatarEl = document.getElementById("sidebar-user-avatar");
         const nameEl = document.getElementById("sidebar-user-name");
+        const roleEl = document.getElementById("sidebar-user-role");
         const avatarMobileEl = document.getElementById("sidebar-user-avatar-mobile");
         const nameMobileEl = document.getElementById("sidebar-user-name-mobile");
+        const headerAvatarEl = document.getElementById("header-user-avatar");
         
         if (avatarEl) avatarEl.innerText = avatar;
         if (nameEl) nameEl.innerText = username;
+        if (roleEl) roleEl.innerText = roleLabel;
         if (avatarMobileEl) avatarMobileEl.innerText = avatar;
         if (nameMobileEl) nameMobileEl.innerText = username;
+        if (headerAvatarEl) {
+          headerAvatarEl.innerText = avatar;
+          headerAvatarEl.title = `${username} (${roleLabel})`;
+        }
       }
 
       // ==========================================
@@ -4191,10 +4208,17 @@
           // Clear input field on success
           pinInput.value = "";
           
-          // If the admin themselves changed their own PIN or role, update their localStorage values
+          // If the admin themselves changed their own PIN, role, or avatar, update their localStorage values
           if (username === localStorage.getItem("estante_da_lu_user")) {
-            localStorage.setItem("estante_da_lu_pin", pin);
+            const cleanPinInput = pin ? pin.trim() : "";
+            if (cleanPinInput !== "") {
+              localStorage.setItem("estante_da_lu_pin", cleanPinInput);
+            }
             localStorage.setItem("estante_da_lu_role", role);
+            localStorage.setItem("estante_da_lu_avatar", avatar);
+            
+            // Instantly update UI avatar and role label
+            updateSidebarProfile(username);
             
             // Show/hide admin gear buttons dynamically based on updated role
             const gearBtn = document.getElementById("admin-gear-btn");
@@ -4238,7 +4262,15 @@
           if (response.ok) {
             const data = await response.json();
             if (data && data.users && data.users.length > 0) {
-              container.innerHTML = data.users.map(user => {
+              const userOrder = { "Lu": 1, "Edu": 2, "Augusto": 3, "Convidado": 4 };
+              const sortedUsers = [...data.users].sort((a, b) => {
+                const oA = userOrder[a.username] || 999;
+                const oB = userOrder[b.username] || 999;
+                if (oA !== oB) return oA - oB;
+                return a.username.localeCompare(b.username);
+              });
+
+              container.innerHTML = sortedUsers.map(user => {
                 const isAdmin = user.role === "admin";
                 const isVisitor = user.role === "visitor" || user.role === "guest";
 
