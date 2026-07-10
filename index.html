@@ -398,7 +398,7 @@
               </div>
             </div>
 
-            <div id="books-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar">
+            <div id="books-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[950px] overflow-y-auto pr-1 no-scrollbar">
               <!-- Rendered Dynamically -->
             </div>
           </div>
@@ -1678,9 +1678,9 @@
         });
 
         if (state.viewMode === "list") {
-          booksGrid.className = "flex flex-col divide-y divide-slate-100 max-h-[600px] overflow-y-auto pr-1 no-scrollbar";
+          booksGrid.className = "flex flex-col divide-y divide-slate-100 max-h-[950px] overflow-y-auto pr-1 no-scrollbar";
         } else {
-          booksGrid.className = "grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar";
+          booksGrid.className = "grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[950px] overflow-y-auto pr-1 no-scrollbar";
         }
 
         // Set Empty State
