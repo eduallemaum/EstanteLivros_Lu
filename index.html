@@ -404,98 +404,18 @@
         </section>
 
         <!-- Stats Side Card -->
-        <section class="md:col-span-4 md:row-span-2 bg-[#7986cb] rounded-[2rem] p-6 shadow-lg shadow-[#7986cb]/10 text-white flex flex-col justify-between relative overflow-hidden">
-          <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full pointer-events-none"></div>
-
-          <div class="flex items-center gap-4 mb-4">
-            <div class="p-3 bg-white/10 rounded-2xl">
-              <i data-lucide="trending-up" class="w-5 h-5 text-[#FF9F0A]"></i>
-            </div>
-            <div>
-              <h3 class="font-bold text-sm font-serif">Pauta Literária</h3>
-              <p class="text-[10px] text-white/70">Histórias & Notas da Lu</p>
-            </div>
-          </div>
-
-          <div class="my-2 flex flex-col gap-2">
-            <p class="text-xs font-serif leading-relaxed text-[#EDE7F6] italic">
-              "Luciana, sua próxima grande história começa na próxima página."
-            </p>
-            <div id="stats-dynamic-content">
-              <!-- Rendered Dynamically -->
-            </div>
-          </div>
-
-          <div class="text-[11px] opacity-70 mt-auto border-t border-white/10 pt-3 flex justify-between items-center">
-            <span>Preferência por jornalismo & literatura</span>
-            <span>🐱</span>
-          </div>
+        <section id="pauta-literaria-card" class="md:col-span-4 md:row-span-2 bg-[#7986cb] rounded-[2rem] p-6 shadow-lg shadow-[#7986cb]/10 text-white flex flex-col justify-between relative overflow-hidden">
+          <!-- Rendered Dynamically -->
         </section>
 
         <!-- Status Distribution -->
-        <section class="md:col-span-4 md:row-span-2 bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 class="font-extrabold text-slate-800 text-sm tracking-tight mb-4 uppercase opacity-80">Distribuição</h3>
-            <div class="space-y-3.5">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                  <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div> Lido
-                </span>
-                <span id="dist-lido" class="text-xs font-bold text-slate-700 bg-emerald-500/10 px-2 py-0.5 rounded-md">0</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                  <div class="w-2.5 h-2.5 rounded-full bg-[#7986cb]"></div> Lendo
-                </span>
-                <span id="dist-lendo" class="text-xs font-bold text-slate-700 bg-[#7986cb]/10 px-2 py-0.5 rounded-md">0</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                  <div class="w-2.5 h-2.5 rounded-full bg-[#b39ddb]"></div> Quero Ler
-                </span>
-                <span id="dist-quero-ler" class="text-xs font-bold text-slate-700 bg-[#b39ddb]/10 px-2 py-0.5 rounded-md">0</span>
-              </div>
-            </div>
-          </div>
-
-          <div id="total-firestore-label" class="text-[10px] text-slate-400 font-medium pt-3 mt-4 border-t border-slate-50">
-            Total de 0 registros no Firestore.
-          </div>
+        <section id="distribution-card" class="md:col-span-4 md:row-span-2 bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+          <!-- Rendered Dynamically -->
         </section>
 
         <!-- Reading Goal Widget -->
-        <section class="md:col-span-4 bg-gradient-to-br from-[#7986cb] to-[#b39ddb] p-6 rounded-[2rem] text-white shadow-lg shadow-[#7986cb]/10 relative overflow-hidden flex flex-col justify-between min-h-[160px]">
-          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold uppercase tracking-wider opacity-90">Meta de Leitura</span>
-              <i data-lucide="award" class="w-4 h-4 text-[#FF9F0A]"></i>
-            </div>
-            <div class="flex items-baseline gap-1.5">
-              <span id="goal-current-books" class="text-3xl font-black">0</span>
-              <span class="text-sm opacity-70">de</span>
-              <div class="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-lg">
-                <span id="goal-target" class="text-sm font-bold">24</span>
-                <div class="flex flex-col text-[8px] leading-none">
-                  <button onclick="updateReadingGoal(1)" class="hover:text-[#FF9F0A] transition-colors">
-                    <i data-lucide="chevron-up" class="w-2.5 h-2.5"></i>
-                  </button>
-                  <button onclick="updateReadingGoal(-1)" class="hover:text-[#FF9F0A] transition-colors">
-                    <i data-lucide="chevron-down" class="w-2.5 h-2.5"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="mt-4">
-            <div class="flex justify-between items-center text-xs mb-1 opacity-85">
-              <span id="goal-percentage">0% Concluído</span>
-              <span id="goal-count-label">0/24 livros</span>
-            </div>
-            <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-              <div id="goal-progress-bar" class="bg-[#FF9F0A] h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-          </div>
+        <section id="reading-goal-card" class="md:col-span-4 bg-gradient-to-br from-[#7986cb] to-[#b39ddb] p-6 rounded-[2rem] text-white shadow-lg shadow-[#7986cb]/10 relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+          <!-- Rendered Dynamically -->
         </section>
 
         <!-- Intelligent Camera Banner -->
@@ -1545,6 +1465,7 @@
         isReviewMode: false,
         expandedBookIds: {},
         readingGoal: parseInt(localStorage.getItem("estante_da_lu_goal") || "24", 10),
+        readingGoalPeriod: localStorage.getItem("estante_da_lu_goal_period") || "anual",
         formSelectedStatus: "Quero Ler",
         aiCandidates: [],
         isAiLoading: false
@@ -2007,40 +1928,440 @@
         const readingBooks = state.books.filter((b) => b.status === "Lendo").length;
         const wantToReadBooks = state.books.filter((b) => b.status === "Quero Ler").length;
 
-        // Update Reading Goals widget
-        document.getElementById("goal-current-books").innerText = readBooks;
-        document.getElementById("goal-target").innerText = state.readingGoal;
-        const percentage = Math.min(100, Math.round((readBooks / state.readingGoal) * 100)) || 0;
-        document.getElementById("goal-percentage").innerText = `${percentage}% Concluído`;
-        document.getElementById("goal-count-label").innerText = `${readBooks}/${state.readingGoal} livros`;
-        document.getElementById("goal-progress-bar").style.width = `${percentage}%`;
+        // Update Reading Goals widget dynamically
+        const readingGoalCard = document.getElementById("reading-goal-card");
+        if (readingGoalCard) {
+          const percentage = Math.min(100, Math.round((readBooks / state.readingGoal) * 100)) || 0;
 
-        // Update distribution boxes
-        document.getElementById("dist-lido").innerText = readBooks;
-        document.getElementById("dist-lendo").innerText = readingBooks;
-        document.getElementById("dist-quero-ler").innerText = wantToReadBooks;
-        document.getElementById("total-firestore-label").innerText = `Total de ${totalBooks} registros no Firestore.`;
+          readingGoalCard.innerHTML = `
+            <!-- Absolute background decor -->
+            <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full pointer-events-none"></div>
+            
+            <div class="w-full">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="p-2 bg-white/15 rounded-xl">
+                    <i data-lucide="award" class="w-4 h-4 text-[#FF9F0A]"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-sm font-sans text-white tracking-wide">Meta de Leitura</h3>
+                    <p class="text-[9px] text-[#EDE7F6]/80 font-medium">Acúmulo de Leitura da Estante</p>
+                  </div>
+                </div>
+                <span class="text-[8px] bg-white/15 text-white font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 shadow-sm">
+                  Geral
+                </span>
+              </div>
 
-        // Update "Pauta Literária" dynamic stats panel
-        const statsContent = document.getElementById("stats-dynamic-content");
-        if (readBooks > 0) {
-          statsContent.innerHTML = `
-            <div class="mt-1">
-              <p class="text-4xl font-black tracking-tight text-white flex items-baseline gap-1">
-                +${Math.round((readBooks / (totalBooks || 1)) * 100)}%
-              </p>
-              <p class="text-xs opacity-80 mt-1 leading-relaxed">
-                Da sua curadoria especial de ${totalBooks} livros foi finalizada!
-              </p>
+              <!-- Tactile Numeric Adjustment Control -->
+              <div class="flex items-center justify-between bg-white/10 border border-white/15 rounded-2xl p-3 my-2 shadow-inner">
+                <div>
+                  <div class="flex items-baseline gap-1">
+                    <span class="text-4xl font-black text-white">${readBooks}</span>
+                    <span class="text-xs opacity-75">de</span>
+                    <span class="text-2xl font-extrabold text-white">${state.readingGoal}</span>
+                  </div>
+                  <p class="text-[9px] font-extrabold uppercase tracking-widest text-[#EDE7F6]/95 mt-0.5">Livros lidos no total</p>
+                </div>
+                
+                <!-- Tactile Control Box -->
+                <div class="flex items-center gap-2 bg-white/10 p-1 rounded-xl border border-white/10 shrink-0">
+                  <button onclick="updateReadingGoal(-1)" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white font-bold" title="Diminuir Meta">
+                    <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <div class="text-center px-1 min-w-[28px]">
+                    <p class="text-[7px] font-bold uppercase tracking-wider opacity-60 leading-none">Meta</p>
+                    <span class="text-xs font-black tracking-tight">${state.readingGoal}</span>
+                  </div>
+                  <button onclick="updateReadingGoal(1)" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white font-bold" title="Aumentar Meta">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mt-2 w-full">
+              <div class="flex justify-between items-center text-[10px] mb-1 opacity-90">
+                <span class="font-extrabold tracking-wide">${percentage}% CONCLUÍDO</span>
+                <span class="font-bold">${readBooks}/${state.readingGoal} livros</span>
+              </div>
+              <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden shadow-inner">
+                <div class="bg-[#FF9F0A] h-full rounded-full transition-all duration-500 shadow-md shadow-[#FF9F0A]/30" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+
+            <!-- Explanatory achievement unlocking section -->
+            <div class="mt-3 w-full bg-white/5 border border-white/5 rounded-2xl p-2.5 text-[9px] leading-relaxed text-[#EDE7F6]/90 font-sans relative overflow-hidden flex items-start gap-2">
+              <div class="text-xs shrink-0 mt-0.5">🏆</div>
+              <div>
+                <p class="font-extrabold text-white">Como funciona esta meta?</p>
+                <p class="opacity-80 mt-0.5">
+                  Esta meta reflete a sua jornada acumulada na estante (sem prazo rígido). Ajuste-a como desejar e, ao atingi-la, você desbloqueia o selo dourado <b>Meta Alcançada</b> na Pauta Literária!
+                </p>
+              </div>
             </div>
           `;
-        } else {
-          statsContent.innerHTML = `
-            <div class="mt-1">
-              <p class="text-xl font-bold tracking-tight">Pronta para Começar!</p>
-              <p class="text-xs opacity-85 mt-1 leading-relaxed">
-                Registre os livros que já leu para exibir suas estatísticas completas de leitura aqui.
+        }
+
+        // Update Pauta Literária (Stats Side Card) dynamically
+        const pautaCard = document.getElementById("pauta-literaria-card");
+        if (pautaCard) {
+          // Calculate Rank
+          let rankEmoji = "🌱";
+          let rankTitle = "Semeadora de Histórias" ;
+          let rankDesc = "Sua jornada de leitura está apenas começando!";
+
+          if (readBooks >= 100) {
+            rankEmoji = "🌌";
+            rankTitle = "Divindade Literária";
+            rankDesc = "Sua mente é um universo habitado por incontáveis mundos e histórias!";
+          } else if (readBooks >= 70) {
+            rankEmoji = "🏛️";
+            rankTitle = "Guardiã da Biblioteca";
+            rankDesc = "Uma coleção monumental e um conhecimento digno da mítica Biblioteca de Alexandria!";
+          } else if (readBooks >= 40) {
+            rankEmoji = "🔮";
+            rankTitle = "Filósofa dos Livros";
+            rankDesc = "Compreende profundamente as nuances, entrelinhas e sabedorias de dezenas de obras.";
+          } else if (readBooks >= 20) {
+            rankEmoji = "👑";
+            rankTitle = "Santuário de Sabedoria";
+            rankDesc = "Sua biblioteca e leituras são uma verdadeira inspiração!";
+          } else if (readBooks >= 10) {
+            rankEmoji = "🧪";
+            rankTitle = "Alquimista Literária";
+            rankDesc = "Misturando saberes e conectando grandes ideias de forma brilhante.";
+          } else if (readBooks >= 5) {
+            rankEmoji = "🗺️";
+            rankTitle = "Viajante de Mundos";
+            rankDesc = "Viajando e colecionando universos através de cada página!";
+          } else if (readBooks >= 1) {
+            rankEmoji = "📖";
+            rankTitle = "Leitora Iniciante";
+            rankDesc = "Excelente! Você já deu os primeiros passos em sua estante literária.";
+          }
+
+          // Adjust feminine/masculine rank labels based on current logged user
+          const currentUser = localStorage.getItem("estante_da_lu_user") || "Lu";
+          if (currentUser !== "Lu") {
+            if (rankTitle === "Semeadora de Histórias") rankTitle = "Semeador de Histórias";
+            if (rankTitle === "Guardiã da Biblioteca") rankTitle = "Guardião da Biblioteca";
+            if (rankTitle === "Filósofa dos Livros") rankTitle = "Filósofo dos Livros";
+            if (rankTitle === "Alquimista Literária") rankTitle = "Alquimista Literário";
+            if (rankTitle === "Leitora Iniciante") rankTitle = "Leitor Iniciante";
+          }
+
+          // Calculate Badges
+          const ratedBooksCount = state.books.filter((b) => b.rating && b.rating > 0).length;
+          const hasBigBook = state.books.some(b => b.status === "Lido" && Number(b.pages) >= 400);
+
+          const statsPayload = {
+            total: totalBooks,
+            read: readBooks,
+            reading: readingBooks,
+            wantToRead: wantToReadBooks,
+            rated: ratedBooksCount,
+            hasBigBook: hasBigBook
+          };
+
+          // Highly extensible badge definitions (easy to append new ones!)
+          const badgeDefinitions = [
+            {
+              id: "primeiro_passo",
+              emoji: "🏆",
+              titleFeminine: "Primeiro Passo",
+              titleMasculine: "Primeiro Passo",
+              desc: "Parabéns! Concluiu sua primeira leitura na estante.",
+              clue: "Termine de ler pelo menos 1 livro.",
+              secret: false,
+              check: (stats) => stats.read >= 1
+            },
+            {
+              id: "devoradora",
+              emoji: "📚",
+              titleFeminine: "Devoradora",
+              titleMasculine: "Devorador",
+              desc: "Parabéns! Você já concluiu a leitura de 5 livros.",
+              clue: "Termine de ler 5 livros.",
+              secret: false,
+              check: (stats) => stats.read >= 5
+            },
+            {
+              id: "exploradora_elite",
+              emoji: "🧭",
+              titleFeminine: "Exploradora de Elite",
+              titleMasculine: "Explorador de Elite",
+              desc: "Extraordinário! Leu 25 livros da sua coleção.",
+              clue: "Termine de ler 25 livros.",
+              secret: true,
+              check: (stats) => stats.read >= 25
+            },
+            {
+              id: "alquimista_saber",
+              emoji: "🔮",
+              titleFeminine: "Alquimista do Saber",
+              titleMasculine: "Alquimista do Saber",
+              desc: "Magistral! Alcançou a incrível marca de 50 livros lidos.",
+              clue: "Termine de ler 50 livros.",
+              secret: true,
+              check: (stats) => stats.read >= 50
+            },
+            {
+              id: "mestre_imperial",
+              emoji: "👑",
+              titleFeminine: "Mestre Imperial",
+              titleMasculine: "Mestre Imperial",
+              desc: "Lendário! Leu 100 livros catalogados na sua estante.",
+              clue: "Termine de ler 100 livros.",
+              secret: true,
+              check: (stats) => stats.read >= 100
+            },
+            {
+              id: "estante_viva",
+              emoji: "🌱",
+              titleFeminine: "Estante Viva",
+              titleMasculine: "Estante Viva",
+              desc: "Catalogou 5 ou mais livros na sua estante.",
+              clue: "Adicione mais de 5 livros na sua estante.",
+              secret: false,
+              check: (stats) => stats.total >= 5
+            },
+            {
+              id: "templo_estante",
+              emoji: "🏛️",
+              titleFeminine: "Templo da Estante",
+              titleMasculine: "Templo da Estante",
+              desc: "Magnífico! Catalogou 100 ou mais livros no acervo.",
+              clue: "Adicione 100 ou mais livros na sua estante.",
+              secret: true,
+              check: (stats) => stats.total >= 100
+            },
+            {
+              id: "critica_ouro",
+              emoji: "⭐",
+              titleFeminine: "Crítica de Ouro",
+              titleMasculine: "Crítico de Ouro",
+              desc: "Avaliou 3 ou mais livros com gatinhos.",
+              clue: "Avalie 3 livros na estante.",
+              secret: false,
+              check: (stats) => stats.rated >= 3
+            },
+            {
+              id: "critica_lendaria",
+              emoji: "✍️",
+              titleFeminine: "Crítica Lendária",
+              titleMasculine: "Crítico Lendário",
+              desc: "Escreveu seu nome na crítica literária avaliando 15+ livros.",
+              clue: "Avalie 15 ou mais livros na estante.",
+              secret: true,
+              check: (stats) => stats.rated >= 15
+            },
+            {
+              id: "leitora_peso",
+              emoji: "🐳",
+              titleFeminine: "Leitora de Peso",
+              titleMasculine: "Leitor de Peso",
+              desc: "Uau! Leu um livro volumoso com mais de 400 páginas.",
+              clue: "Marque como 'Lido' um livro com 400+ páginas.",
+              secret: true,
+              check: (stats) => stats.hasBigBook
+            },
+            {
+              id: "foco_absoluto",
+              emoji: "🎯",
+              titleFeminine: "Foco Absoluto",
+              titleMasculine: "Foco Absoluto",
+              desc: "Lendo 2 ou mais livros simultaneamente.",
+              clue: "Deixe 2 ou mais livros como 'Lendo' ao mesmo tempo.",
+              secret: true,
+              check: (stats) => stats.reading >= 2
+            },
+            {
+              id: "meta_alcancada",
+              emoji: "🏃‍♀️",
+              titleFeminine: "Meta Alcançada",
+              titleMasculine: "Meta Alcançada",
+              desc: "Meta de leitura individual concluída com sucesso!",
+              clue: "Ajuste e atinja sua meta de leitura.",
+              secret: false,
+              check: (stats) => stats.read >= state.readingGoal && state.readingGoal > 0
+            }
+          ];
+
+          const badgesHTML = badgeDefinitions.map(badge => {
+            const active = badge.check(statsPayload);
+            const title = currentUser === "Lu" ? badge.titleFeminine : badge.titleMasculine;
+            
+            let emojiToShow = badge.emoji;
+            let titleToShow = title;
+            let descToShow = badge.desc;
+            
+            if (!active) {
+              if (badge.secret) {
+                emojiToShow = "🔒";
+                titleToShow = "Conquista Oculta";
+                descToShow = `Dica: ${badge.clue}`;
+              } else {
+                descToShow = `Dica: ${badge.clue}`;
+              }
+            }
+
+            return `
+              <div class="flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-300 group relative ${active ? 'bg-white/15 border-white/25 text-white scale-100 shadow-md shadow-[#7986cb]/20' : 'bg-white/5 border-white/5 text-white/30 scale-95'}" title="${titleToShow}: ${descToShow}">
+                <span class="text-xl filter ${active ? 'drop-shadow-sm' : 'grayscale brightness-50'}">${emojiToShow}</span>
+                <span class="text-[8px] font-bold text-center mt-1 truncate w-full ${active ? 'opacity-100 text-white' : 'opacity-40 text-[#EDE7F6]'}">${titleToShow}</span>
+                
+                <!-- Custom Interactive Tooltip -->
+                <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-30 transition-all duration-200">
+                  <div class="bg-slate-950/95 text-white text-[9px] rounded-lg py-1 px-2.5 whitespace-nowrap shadow-xl border border-slate-700/60 leading-normal font-sans">
+                    <p class="font-bold ${active ? 'text-amber-400' : 'text-slate-400'}">${titleToShow}</p>
+                    <p class="text-[8px] opacity-90">${descToShow}</p>
+                  </div>
+                  <div class="w-1.5 h-1.5 bg-slate-950 rotate-45 -mt-1 border-r border-b border-slate-700/60"></div>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          pautaCard.innerHTML = `
+            <!-- Absolute background decor -->
+            <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full pointer-events-none"></div>
+            <div class="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full pointer-events-none"></div>
+
+            <div class="flex items-center justify-between mb-3 z-10">
+              <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-white/15 rounded-xl">
+                  <i data-lucide="trending-up" class="w-5 h-5 text-[#FF9F0A]"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-sm font-serif text-white tracking-wide">Pauta Literária</h3>
+                  <p class="text-[9px] text-[#EDE7F6] opacity-80">Conquistas & Progresso</p>
+                </div>
+              </div>
+              <span class="text-[9px] bg-white/15 text-white font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/15 shadow-sm">
+                Conquistas
+              </span>
+            </div>
+
+            <!-- Big Library Size Focus Counter -->
+            <div class="bg-white/10 border border-white/15 rounded-2xl p-4 flex items-center justify-between shadow-inner my-2 z-10">
+              <div>
+                <span class="text-4xl font-black tracking-tight text-white">${totalBooks}</span>
+                <p class="text-[10px] uppercase font-bold text-[#EDE7F6] tracking-widest mt-0.5">Livros no Acervo</p>
+              </div>
+              <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white/90">
+                <i data-lucide="library" class="w-5 h-5 text-[#FF9F0A]"></i>
+              </div>
+            </div>
+
+            <!-- Nivel de Leitura Rank Box -->
+            <div class="flex flex-col gap-1.5 bg-white/5 p-3.5 rounded-2xl border border-white/10 my-1 z-10">
+              <div class="flex items-center gap-1.5 text-xs font-bold text-white">
+                <span class="text-sm">${rankEmoji}</span>
+                <span class="uppercase tracking-wider text-[10px]">${rankTitle}</span>
+              </div>
+              <p class="text-[10px] text-[#EDE7F6] opacity-90 leading-relaxed font-serif italic">
+                "${rankDesc}"
               </p>
+              ${readBooks > 0 ? `
+                <div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-1">
+                  <div class="bg-[#FF9F0A] h-full rounded-full transition-all duration-500" style="width: ${Math.round((readBooks / (totalBooks || 1)) * 100)}%"></div>
+                </div>
+                <span class="text-[8px] text-right font-medium block text-[#EDE7F6]/80">${Math.round((readBooks / (totalBooks || 1)) * 100)}% concluído</span>
+              ` : ''}
+            </div>
+
+            <!-- Badges Grid -->
+            <div class="my-1.5 z-10">
+              <p class="text-[10px] font-extrabold uppercase tracking-widest text-[#EDE7F6] mb-2">Selos de Conquista</p>
+              <div class="grid grid-cols-4 gap-2">
+                ${badgesHTML}
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-[11px] opacity-70 mt-3 border-t border-white/10 pt-3 flex justify-between items-center z-10">
+              <span>Preferência por jornalismo & literatura</span>
+              <span>🐱</span>
+            </div>
+          `;
+        }
+
+        // Update Distribution card dynamically
+        const distCard = document.getElementById("distribution-card");
+        if (distCard) {
+          const total = totalBooks || 1;
+          const pctLido = Math.round((readBooks / total) * 100);
+          const pctLendo = Math.round((readingBooks / total) * 100);
+          const pctQueroLer = 100 - pctLido - pctLendo;
+
+          distCard.innerHTML = `
+            <div class="flex flex-col h-full justify-between gap-4">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <h3 class="font-extrabold text-slate-800 text-xs tracking-wider uppercase opacity-80">Distribuição por Status</h3>
+                  <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Métricas</span>
+                </div>
+                
+                <!-- Modern Segmented Progress Bar -->
+                <div class="w-full h-3 bg-slate-100 rounded-full flex overflow-hidden shadow-inner my-4 border border-slate-200/30">
+                  <div class="bg-emerald-400 h-full transition-all duration-500 hover:opacity-90" style="width: ${pctLido}%" title="Lido: ${readBooks} livro(s) (${pctLido}%)"></div>
+                  <div class="bg-[#7986cb] h-full transition-all duration-500 hover:opacity-90" style="width: ${pctLendo}%" title="Lendo: ${readingBooks} livro(s) (${pctLendo}%)"></div>
+                  <div class="bg-[#b39ddb] h-full transition-all duration-500 hover:opacity-90" style="width: ${pctQueroLer}%" title="Quero Ler: ${wantToReadBooks} livro(s) (${pctQueroLer}%)"></div>
+                </div>
+
+                <!-- Detail list with card pills -->
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 hover:bg-slate-100/60 border border-slate-100/50 transition-colors duration-200">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                      </div>
+                      <div>
+                        <p class="text-xs font-bold text-slate-700">Lido</p>
+                        <p class="text-[9px] text-slate-400 font-semibold">${pctLido}% do total</p>
+                      </div>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100/50 px-2.5 py-0.5 rounded-lg shadow-sm" id="dist-lido">${readBooks}</span>
+                  </div>
+
+                  <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 hover:bg-slate-100/60 border border-slate-100/50 transition-colors duration-200">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-full bg-indigo-50 text-[#7986cb] border border-indigo-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="clock" class="w-4 h-4 animate-pulse"></i>
+                      </div>
+                      <div>
+                        <p class="text-xs font-bold text-slate-700">Lendo</p>
+                        <p class="text-[9px] text-slate-400 font-semibold">${pctLendo}% do total</p>
+                      </div>
+                    </div>
+                    <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-lg shadow-sm" id="dist-lendo">${readingBooks}</span>
+                  </div>
+
+                  <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 hover:bg-slate-100/60 border border-slate-100/50 transition-colors duration-200">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-full bg-amber-50 text-[#b39ddb] border border-amber-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                      </div>
+                      <div>
+                        <p class="text-xs font-bold text-slate-700">Quero Ler</p>
+                        <p class="text-[9px] text-slate-400 font-semibold">${pctQueroLer}% do total</p>
+                      </div>
+                    </div>
+                    <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-100/50 px-2.5 py-0.5 rounded-lg shadow-sm" id="dist-quero-ler">${wantToReadBooks}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sincronização tag at the bottom -->
+              <div id="total-firestore-label" class="text-[10px] text-slate-400 font-semibold pt-3 mt-auto border-t border-slate-100/70 flex items-center justify-between">
+                <span>Total: ${totalBooks} registros</span>
+                <span class="inline-flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md text-[8px] tracking-wider uppercase">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Nuvem Ativa
+                </span>
+              </div>
             </div>
           `;
         }
