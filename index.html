@@ -88,7 +88,7 @@
         <!-- Section 1: Profile Selection -->
         <div id="login-profile-sec" class="w-full block">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-wider text-center mb-6">Quem está lendo hoje?</p>
-          <div class="grid grid-cols-3 gap-3 mb-4">
+          <div id="login-profiles-container" class="grid grid-cols-3 gap-3 mb-4">
             <!-- Profile 1: Lu -->
             <button onclick="selectUserProfile('Lu')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
               <div class="w-14 h-14 rounded-2xl bg-[#EDE7F6] text-[#7986cb] flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
@@ -202,6 +202,7 @@
           
           <!-- Mobile Add Button -->
           <button
+            id="mobile-add-book-btn"
             onclick="openAddBookModal()"
             class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#7986cb] text-white text-xs font-bold shadow-md shadow-[#7986cb]/20"
           >
@@ -316,6 +317,7 @@
           </button>
 
           <button
+            id="desktop-add-book-btn"
             onclick="openAddBookModal()"
             class="bg-white p-3 rounded-2xl shadow-sm text-slate-500 hover:text-[#7986cb] hover:bg-slate-50 transition-all"
             title="Adicionar livro manualmente"
@@ -497,7 +499,7 @@
         </section>
 
         <!-- Intelligent Camera Banner -->
-        <section class="md:col-span-12 md:row-span-2 bg-[#EDE7F6] rounded-[2rem] p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between relative overflow-hidden border border-violet-100/30 gap-6">
+        <section id="dashboard-scanner-section" class="md:col-span-12 md:row-span-2 bg-[#EDE7F6] rounded-[2rem] p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between relative overflow-hidden border border-violet-100/30 gap-6">
           <div class="z-10 text-center sm:text-left">
             <h2 class="text-xl md:text-2xl font-black text-[#7986cb] tracking-tight">Nova aquisição física?</h2>
             <p class="text-[#7986cb]/70 text-xs md:text-sm mt-1 max-w-md font-medium">
@@ -619,6 +621,7 @@
 
     <!-- Mobile Sticky Trigger -->
     <button
+      id="floating-scanner-btn"
       onclick="openScannerModal()"
       class="fixed bottom-6 right-6 md:hidden z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-[#7986cb] to-[#b39ddb] text-white shadow-xl shadow-[#7986cb]/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       title="Escanear com IA"
@@ -1696,6 +1699,32 @@
           shimmer.classList.add("hidden");
         }
 
+        // Dynamically hide/show actions based on user role (Only admin can modify or scan books)
+        const userRole = localStorage.getItem("estante_da_lu_role");
+        const isAdmin = userRole === "admin";
+
+        const mobileAddBtn = document.getElementById("mobile-add-book-btn");
+        const desktopAddBtn = document.getElementById("desktop-add-book-btn");
+        const dashboardScannerSec = document.getElementById("dashboard-scanner-section");
+        const floatingScannerBtn = document.getElementById("floating-scanner-btn");
+
+        if (mobileAddBtn) {
+          if (isAdmin) mobileAddBtn.classList.remove("hidden");
+          else mobileAddBtn.classList.add("hidden");
+        }
+        if (desktopAddBtn) {
+          if (isAdmin) desktopAddBtn.classList.remove("hidden");
+          else desktopAddBtn.classList.add("hidden");
+        }
+        if (dashboardScannerSec) {
+          if (isAdmin) dashboardScannerSec.classList.remove("hidden");
+          else dashboardScannerSec.classList.add("hidden");
+        }
+        if (floatingScannerBtn) {
+          if (isAdmin) floatingScannerBtn.classList.remove("hidden");
+          else floatingScannerBtn.classList.add("hidden");
+        }
+
         // Apply filters
         let filteredBooks = state.books.filter((book) => {
           const matchesSearch =
@@ -1814,6 +1843,7 @@
                     ${listRatingHTML}
                   </div>
                 </div>
+                ${localStorage.getItem("estante_da_lu_role") === "admin" ? `
                 <div class="flex items-center gap-1 flex-shrink-0">
                   <button onclick="openEditBookModal('${book.id}')" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar Livro">
                     <i data-lucide="edit-2" class="w-4 h-4"></i>
@@ -1822,6 +1852,7 @@
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                   </button>
                 </div>
+                ` : ''}
               </div>
             `;
           }).join("");
@@ -1950,6 +1981,7 @@
                     <div class="flex items-center justify-between mt-auto">
                       ${statusBadge}
                       
+                      ${localStorage.getItem("estante_da_lu_role") === "admin" ? `
                       <div class="flex gap-1.5">
                         <button onclick="openEditBookModal('${book.id}')" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar Livro">
                           <i data-lucide="edit-2" class="w-4 h-4"></i>
@@ -1958,6 +1990,7 @@
                           <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                       </div>
+                      ` : ''}
                     </div>
                   </div>
                 </div>
@@ -2078,6 +2111,10 @@
 
        // 8. CRUD Operations
       window.openAddBookModal = function() {
+        if (localStorage.getItem("estante_da_lu_role") !== "admin") {
+          alert("Apenas Moderadores podem adicionar novos livros.");
+          return;
+        }
         state.editingBook = null;
         document.getElementById("modal-title").innerText = "Adicionar Livro";
         document.getElementById("modal-sparkles-badge").classList.add("hidden");
@@ -2117,6 +2154,10 @@
       };
 
       window.openEditBookModal = function(bookId) {
+        if (localStorage.getItem("estante_da_lu_role") !== "admin") {
+          alert("Apenas Moderadores podem editar livros.");
+          return;
+        }
         const book = state.books.find((b) => b.id === bookId);
         if (!book) return;
         
@@ -2201,10 +2242,16 @@
         // Edit button
         const editBtn = document.getElementById("detail-edit-btn");
         if (editBtn) {
-          editBtn.onclick = function() {
-            window.closeBookDetailsModal();
-            window.openEditBookModal(bookId);
-          };
+          const userRole = localStorage.getItem("estante_da_lu_role");
+          if (userRole === "admin") {
+            editBtn.classList.remove("hidden");
+            editBtn.onclick = function() {
+              window.closeBookDetailsModal();
+              window.openEditBookModal(bookId);
+            };
+          } else {
+            editBtn.classList.add("hidden");
+          }
         }
         
         // Cover Column
@@ -2658,6 +2705,10 @@
 
       window.handleBookSubmit = async function(event) {
         event.preventDefault();
+        if (localStorage.getItem("estante_da_lu_role") !== "admin") {
+          alert("Você não tem permissão para salvar alterações de livros.");
+          return;
+        }
         const errorBanner = document.getElementById("modal-error-banner");
         const errorText = document.getElementById("modal-error-text");
         
@@ -2743,6 +2794,10 @@
       };
 
       window.deleteBookDoc = async function(bookId) {
+        if (localStorage.getItem("estante_da_lu_role") !== "admin") {
+          alert("Apenas Moderadores podem excluir livros.");
+          return;
+        }
         if (!confirm("Deseja mesmo remover este livro da sua estante?")) return;
         
         try {
@@ -2762,6 +2817,10 @@
       let cameraStream = null;
 
       window.openScannerModal = async function() {
+        if (localStorage.getItem("estante_da_lu_role") !== "admin") {
+          alert("Apenas Moderadores podem usar a câmera scanner de IA.");
+          return;
+        }
         const modal = document.getElementById("scanner-modal");
         modal.classList.remove("hidden");
         modal.classList.add("flex");
@@ -4169,6 +4228,45 @@
         location.reload();
       };
 
+      // Load profiles dynamically on login screen
+      async function loadLoginProfiles() {
+        const container = document.getElementById("login-profiles-container");
+        if (!container) return;
+
+        try {
+          const response = await fetch("/api/verify-pin");
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.users && data.users.length > 0) {
+              container.innerHTML = data.users.map(user => {
+                const isAdmin = user.role === "admin";
+                const isVisitor = user.role === "visitor" || user.role === "guest";
+
+                let roleLabel = "Leitor";
+                if (isAdmin) roleLabel = "Moderador";
+                if (isVisitor) roleLabel = "Visita";
+
+                let bgClass = "bg-[#EDE7F6] text-[#7986cb]";
+                if (isAdmin) bgClass = "bg-orange-50 text-orange-500";
+                if (isVisitor) bgClass = "bg-teal-50 text-teal-600";
+
+                return `
+                  <button onclick="selectUserProfile('${user.username}')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
+                    <div class="w-14 h-14 rounded-2xl ${bgClass} flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
+                      ${user.avatar || "📖"}
+                    </div>
+                    <span class="text-xs font-extrabold text-slate-700 truncate w-full max-w-[80px]">${user.username}</span>
+                    <span class="text-[9px] text-slate-400 font-semibold mt-0.5">${roleLabel}</span>
+                  </button>
+                `;
+              }).join("");
+            }
+          }
+        } catch (error) {
+          console.error("Error loading profiles dynamically:", error);
+        }
+      }
+
       // Check Session on page boot
       function checkAppSession() {
         const sessionUser = localStorage.getItem("estante_da_lu_user");
@@ -4180,6 +4278,7 @@
         } else {
           document.getElementById("family-login-portal").classList.remove("hidden");
           document.getElementById("main-app-layout").classList.add("hidden");
+          loadLoginProfiles();
         }
       }
 

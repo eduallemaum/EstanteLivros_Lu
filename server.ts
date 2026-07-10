@@ -85,6 +85,15 @@ const validatePin = async (req: any, res: any, next: any) => {
 };
 
 // API to verify family member 6-digit PIN
+app.get("/api/verify-pin", async (req, res) => {
+  try {
+    const users = await getAllUsers(false); // safe list of profiles (pins are deleted)
+    return res.json({ success: true, users });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || "Erro ao obter os perfis de usuário." });
+  }
+});
+
 app.post("/api/verify-pin", async (req, res) => {
   try {
     const { username, pin } = req.body;

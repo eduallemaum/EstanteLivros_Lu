@@ -63,6 +63,18 @@ export async function seedUsersIfEmpty() {
           console.log("Lu successfully upgraded to admin.");
         }
       }
+
+      // Also ensure "Edu" is upgraded to admin if he exists
+      const eduDocRef = doc(db, "family_users", "Edu");
+      const eduSnap = await getDoc(eduDocRef);
+      if (eduSnap.exists()) {
+        const eduData = eduSnap.data();
+        if (eduData.role !== "admin") {
+          console.log("Upgrading Edu to admin role in Firestore...");
+          await setDoc(eduDocRef, { ...eduData, role: "admin" });
+          console.log("Edu successfully upgraded to admin.");
+        }
+      }
     }
   } catch (error) {
     console.error("Error seeding default users:", error);

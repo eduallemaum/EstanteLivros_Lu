@@ -1,4 +1,4 @@
-import { verifyPin } from "./db.js";
+import { verifyPin, getAllUsers } from "./db.js";
 
 export default async function handler(req, res) {
   // CORS Headers
@@ -12,6 +12,15 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
+  }
+
+  if (req.method === "GET") {
+    try {
+      const users = await getAllUsers(false); // safe list of profiles (pins are deleted)
+      return res.status(200).json({ success: true, users });
+    } catch (error) {
+      return res.status(500).json({ error: error.message || "Erro ao obter os perfis de usuário." });
+    }
   }
 
   if (req.method !== "POST") {
