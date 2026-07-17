@@ -246,6 +246,14 @@
           <i data-lucide="check-circle" class="w-4 h-4"></i>
           <span>Lidos</span>
         </button>
+        <button
+          id="nav-btn-Box-Set"
+          onclick="filterStatus('Box Set')"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap"
+        >
+          <i data-lucide="layers" class="w-4 h-4"></i>
+          <span>Boxes / Coleções</span>
+        </button>
       </nav>
 
       <div class="h-px bg-slate-200/70 my-1 hidden md:block"></div>
@@ -632,6 +640,26 @@
                   <span id="detail-pages-badge" class="text-xs px-3 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium border border-slate-200/40"></span>
                 </div>
 
+                <!-- Extra Info (Publisher, Year, Edition) -->
+                <div id="detail-extra-info" class="mt-4 flex flex-col gap-2 text-xs text-slate-600 bg-slate-50 p-3.5 rounded-2xl border border-slate-100 hidden">
+                  <div class="flex justify-between items-center" id="detail-publisher-row">
+                    <span class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Editora</span>
+                    <span id="detail-publisher-val" class="font-semibold text-slate-850"></span>
+                  </div>
+                  <div class="flex justify-between items-center" id="detail-year-row">
+                    <span class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Ano de Lançamento</span>
+                    <span id="detail-year-val" class="font-semibold text-slate-850"></span>
+                  </div>
+                  <div class="flex justify-between items-center" id="detail-edition-row">
+                    <span class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Edição</span>
+                    <span id="detail-edition-val" class="font-semibold text-slate-850"></span>
+                  </div>
+                  <div class="flex justify-between items-center hidden" id="detail-box-set-row">
+                    <span class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Coleção / Box Set</span>
+                    <span id="detail-box-set-val" class="font-semibold text-indigo-600 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-100"></span>
+                  </div>
+                </div>
+
                 <div class="border-t border-slate-100 mt-5 pt-4">
                   <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Sinopse do Livro</h3>
                   <p id="detail-synopsis" class="text-slate-600 text-sm leading-relaxed text-justify whitespace-pre-line font-medium bg-slate-50/50 p-3.5 rounded-2xl border border-slate-50"></p>
@@ -722,6 +750,30 @@
           <div id="modal-error-banner" class="bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-2xl flex gap-2 items-center text-xs hidden">
             <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-500"></i>
             <span id="modal-error-text">Ocorreu um erro.</span>
+          </div>
+
+          <!-- Warning Banner for Duplicates -->
+          <div id="modal-duplicate-banner" class="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl flex flex-col gap-2.5 text-xs hidden">
+            <div class="flex gap-2 items-start">
+              <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 text-amber-600 mt-0.5"></i>
+              <div>
+                <p class="font-bold text-amber-950">⚠️ Livro Duplicado Detectado</p>
+                <p class="opacity-90 mt-1 leading-relaxed text-slate-700">
+                  Já existe um livro chamado <strong id="duplicate-title-display"></strong> na sua estante. 
+                  Se esta for uma edição diferente (ex: outra Editora, Ano de Lançamento ou Edição), preencha as informações abaixo para diferenciá-los. 
+                  Se for realmente o mesmo livro, você pode clicar no botão abaixo para confirmar.
+                </p>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-1">
+              <button
+                type="button"
+                onclick="window.confirmDuplicateSave()"
+                class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-[11px] transition-all shadow-sm active:scale-95"
+              >
+                Salvar Mesmo Assim
+              </button>
+            </div>
           </div>
 
           <!-- AI Auto-Prefill Magic Section -->
@@ -848,6 +900,37 @@
             />
           </div>
 
+          <!-- Publisher, Year and Edition fields -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block">Editora</label>
+              <input
+                id="form-publisher"
+                type="text"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium bg-white"
+                placeholder="Ex: Intrínseca"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block">Ano Lançamento</label>
+              <input
+                id="form-year"
+                type="text"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium bg-white"
+                placeholder="Ex: 2012"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider block">Edição</label>
+              <input
+                id="form-edition"
+                type="text"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7986cb]/20 focus:border-[#7986cb] text-sm text-slate-800 transition-all placeholder:text-slate-400 font-medium bg-white"
+                placeholder="Ex: 1ª"
+              />
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1">
               <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Gênero</label>
@@ -899,6 +982,51 @@
                 Lido
               </button>
             </div>
+          </div>
+
+          <!-- Bento box de Box Set / Coleção (Parte de um Box) -->
+          <div class="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100/60 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-indigo-950 flex items-center gap-1.5 uppercase tracking-wider">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-500"></i>
+                <span>Coleção / Box Set</span>
+              </h3>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  id="checkbox-in-box-set"
+                  type="checkbox"
+                  onchange="toggleBoxSetFields(this.checked)"
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                <span class="ml-2 text-xs font-semibold text-indigo-900">Parte de um Box</span>
+              </label>
+            </div>
+
+            <div id="box-set-fields-container" class="grid grid-cols-2 gap-3.5 hidden duration-200">
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold text-indigo-900/70 uppercase tracking-wider">Nome do Box</label>
+                <input
+                  id="form-box-set-name"
+                  type="text"
+                  placeholder="Ex: Box Sherlock Holmes"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs text-slate-800 transition-all bg-white font-medium"
+                />
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-[10px] font-bold text-indigo-900/70 uppercase tracking-wider">Volume / Subdivisão</label>
+                <input
+                  id="form-box-set-volume"
+                  type="text"
+                  placeholder="Ex: Box 1, Vol. 2"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs text-slate-800 transition-all bg-white font-medium"
+                />
+              </div>
+            </div>
+            <p class="text-[10px] text-indigo-900/60 leading-normal">
+              Ative se o livro pertence a um box ou coleção (como os boxes temáticos da Agatha Christie) para organizá-los melhor na sua estante.
+            </p>
           </div>
 
           <div class="space-y-1">
@@ -1441,6 +1569,40 @@
           synopsis: 'Uma profunda análise dos arquétipos femininos através de mitos, contos de fadas e histórias ancestrais, resgatando a essência da "Mulher Selvagem" e sua força vital oculta.',
           status: 'Quero Ler',
           coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51lO06NfLML._SX323_BO1,204,203,200_.jpg'
+        },
+        {
+          id: 'default_6',
+          title: 'Um Estudo em Vermelho',
+          author: 'Arthur Conan Doyle',
+          genre: 'Mistério',
+          pages: 140,
+          synopsis: 'A primeira aventura de Sherlock Holmes e Dr. Watson, onde eles investigam um misterioso assassinato em Londres.',
+          status: 'Lido',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/81xXm6-j7JL._AC_UL600_SR600,400_.jpg',
+          isbn: '9788537815250',
+          publisher: 'Zahar',
+          publishYear: '2016',
+          edition: 'Edição de Luxo',
+          inBoxSet: true,
+          boxSetName: 'Box Sherlock Holmes',
+          boxSetVolume: 'Vol. 1'
+        },
+        {
+          id: 'default_7',
+          title: 'E Não Sobrou Nenhum',
+          author: 'Agatha Christie',
+          genre: 'Mistério',
+          pages: 400,
+          synopsis: 'Dez pessoas que não se conhecem são convidadas para um fim de semana em uma idha isolada. Mortes misteriosas começam a acontecer seguindo os versos de um antigo poema infantil.',
+          status: 'Lido',
+          coverImage: 'https://images-na.ssl-images-amazon.com/images/I/81u8Ysc4MvL._AC_UL600_SR600,400_.jpg',
+          isbn: '9788525062963',
+          publisher: 'Globo Livros',
+          publishYear: '2016',
+          edition: 'Capa Dura',
+          inBoxSet: true,
+          boxSetName: 'Agatha Christie - Box 1',
+          boxSetVolume: 'Vol. 3'
         }
       ];
 
@@ -1469,7 +1631,8 @@
         readingGoalPeriod: localStorage.getItem("estante_da_lu_goal_period") || "anual",
         formSelectedStatus: "Quero Ler",
         aiCandidates: [],
-        isAiLoading: false
+        isAiLoading: false,
+        duplicateBypass: false
       };
 
       // Simple stable hash for covers
@@ -1655,7 +1818,14 @@
             (book.genre && book.genre.toLowerCase().includes(state.searchQuery.toLowerCase())) ||
             (book.synopsis && book.synopsis.toLowerCase().includes(state.searchQuery.toLowerCase()));
 
-          const matchesStatus = state.selectedStatus === "Todos" || book.status === state.selectedStatus;
+          let matchesStatus = false;
+          if (state.selectedStatus === "Todos") {
+            matchesStatus = true;
+          } else if (state.selectedStatus === "Box Set") {
+            matchesStatus = !!book.inBoxSet;
+          } else {
+            matchesStatus = book.status === state.selectedStatus;
+          }
 
           return matchesSearch && matchesStatus;
         });
@@ -1757,10 +1927,11 @@
                   ${statusIconHTML}
                   <div class="min-w-0 flex-1">
                     <h4 class="font-sans font-bold text-slate-800 text-sm sm:text-base leading-snug truncate group-hover/title:text-[#7986cb] group-hover/title:underline transition-colors">${book.title}</h4>
-                    <p class="text-xs text-slate-400 font-medium truncate mt-0.5">
-                      por <span class="text-slate-600 font-semibold">${book.author}</span> 
-                      ${book.genre ? `• <span class="text-slate-500 font-semibold">${book.genre}</span>` : ""}
-                      ${book.pages > 0 ? `• <span class="text-slate-500 font-medium">${book.pages} pág.</span>` : ""}
+                    <p class="text-xs text-slate-400 font-medium truncate mt-0.5 flex items-center flex-wrap gap-1">
+                      <span>por <span class="text-slate-600 font-semibold">${book.author}</span></span>
+                      ${book.genre ? `<span>• <span class="text-slate-500 font-semibold">${book.genre}</span></span>` : ""}
+                      ${book.pages > 0 ? `<span>• <span class="text-slate-500 font-medium">${book.pages} pág.</span></span>` : ""}
+                      ${book.inBoxSet ? `<span class="inline-flex items-center gap-0.5 text-[10px] ml-1.5 px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50 font-bold" title="${book.boxSetName}${book.boxSetVolume ? ` - ${book.boxSetVolume}` : ''}"><i data-lucide="layers" class="w-2.5 h-2.5"></i> ${book.boxSetVolume ? `${book.boxSetName} (${book.boxSetVolume})` : book.boxSetName}</span>` : ""}
                     </p>
                     ${listRatingHTML}
                   </div>
@@ -1897,6 +2068,7 @@
                       <div class="flex flex-wrap gap-1.5 mt-2">
                         <span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.genre || 'Não classificado'}</span>
                         ${book.pages > 0 ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.pages} pág.</span>` : ""}
+                        ${book.inBoxSet ? `<span class="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold flex items-center gap-1" title="${book.boxSetName}${book.boxSetVolume ? ` - ${book.boxSetVolume}` : ''}"><i data-lucide="layers" class="w-3 h-3"></i> ${book.boxSetVolume ? `${book.boxSetName} (${book.boxSetVolume})` : book.boxSetName}</span>` : ""}
                       </div>
                     </div>
  
@@ -2387,7 +2559,7 @@
         state.selectedStatus = status;
         
         // Toggle selected styling on Navigation (Sidebar)
-        ["Todos", "Quero Ler", "Lendo", "Lido"].forEach((s) => {
+        ["Todos", "Quero Ler", "Lendo", "Lido", "Box Set"].forEach((s) => {
           const btn = document.getElementById(`nav-btn-${s.replace(" ", "-")}`);
           if (btn) {
             if (s === status) {
@@ -2432,12 +2604,17 @@
       };
 
        // 8. CRUD Operations
-      window.openAddBookModal = function() {
+       window.openAddBookModal = function() {
         if (localStorage.getItem("estante_da_lu_role") !== "admin") {
           alert("Apenas Moderadores podem adicionar novos livros.");
           return;
         }
         state.editingBook = null;
+        state.duplicateBypass = false;
+        
+        // Hide duplicate and error banners
+        const dupBanner = document.getElementById("modal-duplicate-banner");
+        if (dupBanner) dupBanner.classList.add("hidden");
         document.getElementById("modal-title").innerText = "Adicionar Livro";
         document.getElementById("modal-sparkles-badge").classList.add("hidden");
         document.getElementById("modal-ai-banner").classList.add("hidden");
@@ -2464,6 +2641,15 @@
         document.getElementById("form-pages").value = "";
         document.getElementById("form-synopsis").value = "";
         document.getElementById("form-isbn").value = "";
+        document.getElementById("form-publisher").value = "";
+        document.getElementById("form-year").value = "";
+        document.getElementById("form-edition").value = "";
+        
+        document.getElementById("checkbox-in-box-set").checked = false;
+        document.getElementById("form-box-set-name").value = "";
+        document.getElementById("form-box-set-volume").value = "";
+        window.toggleBoxSetFields(false);
+
         window.setFormStatus("Quero Ler");
         
         // Hide Cover Preview
@@ -2484,6 +2670,11 @@
         if (!book) return;
         
         state.editingBook = book;
+        state.duplicateBypass = false;
+        
+        // Hide duplicate and error banners
+        const dupBanner = document.getElementById("modal-duplicate-banner");
+        if (dupBanner) dupBanner.classList.add("hidden");
         document.getElementById("modal-title").innerText = "Editar Detalhes";
         document.getElementById("modal-sparkles-badge").classList.add("hidden");
         document.getElementById("modal-ai-banner").classList.add("hidden");
@@ -2501,6 +2692,16 @@
         document.getElementById("form-pages").value = book.pages || "";
         document.getElementById("form-synopsis").value = book.synopsis || "";
         document.getElementById("form-isbn").value = book.isbn || "";
+        document.getElementById("form-publisher").value = book.publisher || "";
+        document.getElementById("form-year").value = book.publishYear || "";
+        document.getElementById("form-edition").value = book.edition || "";
+
+        const inBoxSet = !!book.inBoxSet;
+        document.getElementById("checkbox-in-box-set").checked = inBoxSet;
+        document.getElementById("form-box-set-name").value = book.boxSetName || "";
+        document.getElementById("form-box-set-volume").value = book.boxSetVolume || "";
+        window.toggleBoxSetFields(inBoxSet);
+
         window.setFormStatus(book.status || "Quero Ler");
 
         // Handle Cover Preview
@@ -2521,6 +2722,10 @@
         modal.classList.add("hidden");
         modal.classList.remove("flex");
         state.editingBook = null;
+        state.duplicateBypass = false;
+        
+        const dupBanner = document.getElementById("modal-duplicate-banner");
+        if (dupBanner) dupBanner.classList.add("hidden");
         
         if (state.isReviewMode) {
           // Discard remainder if canceled
@@ -2607,6 +2812,61 @@
         const pagesBadge = document.getElementById("detail-pages-badge");
         pagesBadge.innerText = book.pages > 0 ? `${book.pages} páginas` : "Páginas não informadas";
         
+        // Populate and display extra info (Publisher, Year, Edition) if present
+        const extraInfoBox = document.getElementById("detail-extra-info");
+        if (extraInfoBox) {
+          const pubRow = document.getElementById("detail-publisher-row");
+          const pubVal = document.getElementById("detail-publisher-val");
+          const yrRow = document.getElementById("detail-year-row");
+          const yrVal = document.getElementById("detail-year-val");
+          const edRow = document.getElementById("detail-edition-row");
+          const edVal = document.getElementById("detail-edition-val");
+
+          let hasExtra = false;
+
+          if (book.publisher) {
+            pubVal.innerText = book.publisher;
+            pubRow.classList.remove("hidden");
+            hasExtra = true;
+          } else {
+            pubRow.classList.add("hidden");
+          }
+
+          if (book.publishYear) {
+            yrVal.innerText = book.publishYear;
+            yrRow.classList.remove("hidden");
+            hasExtra = true;
+          } else {
+            yrRow.classList.add("hidden");
+          }
+
+          if (book.edition) {
+            edVal.innerText = book.edition;
+            edRow.classList.remove("hidden");
+            hasExtra = true;
+          } else {
+            edRow.classList.add("hidden");
+          }
+
+          const boxRow = document.getElementById("detail-box-set-row");
+          const boxVal = document.getElementById("detail-box-set-val");
+          if (boxRow && boxVal) {
+            if (book.inBoxSet && book.boxSetName) {
+              boxVal.innerText = book.boxSetVolume ? `${book.boxSetName} (${book.boxSetVolume})` : book.boxSetName;
+              boxRow.classList.remove("hidden");
+              hasExtra = true;
+            } else {
+              boxRow.classList.add("hidden");
+            }
+          }
+
+          if (hasExtra) {
+            extraInfoBox.classList.remove("hidden");
+          } else {
+            extraInfoBox.classList.add("hidden");
+          }
+        }
+
         const synopsisEl = document.getElementById("detail-synopsis");
         synopsisEl.innerText = book.synopsis || "Nenhuma sinopse disponível para este livro.";
         
@@ -2915,6 +3175,9 @@
         document.getElementById("form-pages").value = book.pages || "";
         document.getElementById("form-synopsis").value = book.synopsis || "";
         document.getElementById("form-isbn").value = book.isbn || "";
+        document.getElementById("form-publisher").value = book.publisher || "";
+        document.getElementById("form-year").value = book.publishYear || "";
+        document.getElementById("form-edition").value = book.edition || "";
         window.setFormStatus(book.status || "Quero Ler");
 
         // Clear error
@@ -2972,6 +3235,17 @@
         });
       };
 
+      window.toggleBoxSetFields = function(checked) {
+        const container = document.getElementById("box-set-fields-container");
+        if (container) {
+          if (checked) {
+            container.classList.remove("hidden");
+          } else {
+            container.classList.add("hidden");
+          }
+        }
+      };
+
       window.handleCoverInput = function(value) {
         const previewBox = document.getElementById("cover-preview-box");
         const previewImg = document.getElementById("cover-preview-img");
@@ -3025,8 +3299,15 @@
         }
       };
 
+      window.confirmDuplicateSave = function() {
+        state.duplicateBypass = true;
+        const dupBanner = document.getElementById("modal-duplicate-banner");
+        if (dupBanner) dupBanner.classList.add("hidden");
+        window.handleBookSubmit();
+      };
+
       window.handleBookSubmit = async function(event) {
-        event.preventDefault();
+        if (event && typeof event.preventDefault === "function") event.preventDefault();
         if (localStorage.getItem("estante_da_lu_role") !== "admin") {
           alert("Você não tem permissão para salvar alterações de livros.");
           return;
@@ -3043,11 +3324,36 @@
         const pagesVal = parseInt(document.getElementById("form-pages").value, 10) || 0;
         const synopsisVal = document.getElementById("form-synopsis").value.trim();
         const isbnVal = document.getElementById("form-isbn").value.trim();
+        const publisherVal = document.getElementById("form-publisher").value.trim();
+        const publishYearVal = document.getElementById("form-year").value.trim();
+        const editionVal = document.getElementById("form-edition").value.trim();
+
+        const inBoxSetVal = document.getElementById("checkbox-in-box-set").checked;
+        const boxSetNameVal = document.getElementById("form-box-set-name").value.trim();
+        const boxSetVolumeVal = document.getElementById("form-box-set-volume").value.trim();
 
         if (!titleVal || !authorVal) {
           errorText.innerText = "Título e autor são obrigatórios.";
           errorBanner.classList.remove("hidden");
           return;
+        }
+
+        // Duplicate Check
+        if (!state.duplicateBypass) {
+          const duplicate = state.books.find((b) => 
+            b.title && b.title.trim().toLowerCase() === titleVal.toLowerCase() &&
+            (!state.editingBook || b.id !== state.editingBook.id)
+          );
+          if (duplicate) {
+            const dupBanner = document.getElementById("modal-duplicate-banner");
+            const dupTitleDisplay = document.getElementById("duplicate-title-display");
+            if (dupBanner && dupTitleDisplay) {
+              dupTitleDisplay.innerText = `"${duplicate.title}" (por ${duplicate.author || "autor desconhecido"})`;
+              dupBanner.classList.remove("hidden");
+              dupBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              return;
+            }
+          }
         }
 
         const cleanData = {
@@ -3058,7 +3364,13 @@
           pages: pagesVal,
           synopsis: synopsisVal,
           status: state.formSelectedStatus,
-          isbn: isbnVal
+          isbn: isbnVal,
+          publisher: publisherVal,
+          publishYear: publishYearVal,
+          edition: editionVal,
+          inBoxSet: inBoxSetVal,
+          boxSetName: inBoxSetVal ? boxSetNameVal : "",
+          boxSetVolume: inBoxSetVal ? boxSetVolumeVal : ""
         };
 
         try {
@@ -3095,6 +3407,11 @@
           localStorage.setItem("estante_da_lu_backup", JSON.stringify(updatedList));
           renderApp();
         }
+
+        // Reset duplicate status after successful save
+        state.duplicateBypass = false;
+        const dupBanner = document.getElementById("modal-duplicate-banner");
+        if (dupBanner) dupBanner.classList.add("hidden");
 
         // Advance or exit review mode
         if (state.isReviewMode) {

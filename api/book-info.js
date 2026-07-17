@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Nenhum ISBN ou título do livro fornecido." });
     }
 
-    const apiKey = process.env.USER_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.USER_GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Book } from '../types';
 import { BookCover } from './BookCover';
-import { Edit2, Trash2, BookOpen, Clock, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit2, Trash2, BookOpen, Clock, CheckCircle, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 
 interface BookCardProps {
   book: Book;
@@ -52,7 +52,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete }) =>
         <BookCover title={book.title} author={book.author} genre={book.genre} coverImage={book.coverImage} />
 
         {/* Info */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between h-36">
+        <div className="flex-1 min-w-0 flex flex-col justify-between min-h-36">
           <div>
             <div className="flex items-start justify-between gap-1">
               <h3 className="font-sans font-bold text-slate-800 text-base leading-snug line-clamp-2">
@@ -73,6 +73,15 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete }) =>
                 </span>
               )}
             </div>
+
+            {book.inBoxSet && (
+              <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold w-fit max-w-full">
+                <Layers className="w-3 h-3 text-indigo-500 shrink-0" />
+                <span className="truncate">
+                  {book.boxSetName || 'Parte de Box'}{book.boxSetVolume ? ` • ${book.boxSetVolume}` : ''}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between mt-auto">

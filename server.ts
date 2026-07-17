@@ -14,52 +14,65 @@ const PORT = 3000;
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-let aiClient: GoogleGenAI | null = null;
-
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
-    const key = process.env.USER_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("A variável de ambiente GEMINI_API_KEY não está configurada. Por favor, adicione seu chave da API Gemini nas configurações do AI Studio.");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey: key,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
+// Helper for exponential backoff retry on transient errors (503, 429, etc.) using direct HTTP fetch to avoid Vertex AI / ADC hangs on Cloud Run
+async function generateContentWithFetch(
+  model: string,
+  contents: any[],
+  config?: any,
+  maxRetries = 2,
+  initialDelay = 1000
+): Promise<{ text: string }> {
+  const key = process.env.GEMINI_API_KEY || process.env.USER_GEMINI_API_KEY;
+  if (!key) {
+    throw new Error("A variável de ambiente GEMINI_API_KEY não está configurada. Por favor, adicione seu chave da API Gemini nas configurações do AI Studio.");
   }
-  return aiClient;
-}
 
-// Helper for exponential backoff retry on transient errors (503, 429, etc.)
-async function generateContentWithRetry(client: GoogleGenAI, params: any, maxRetries = 3, initialDelay = 1500): Promise<any> {
-  let delay = initialDelay;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await client.models.generateContent(params);
-    } catch (error: any) {
-      const isTransient = 
-        error.status === 503 || 
-        error.code === 503 ||
-        error.statusCode === 503 ||
-        (error.message && error.message.includes("503")) ||
-        (error.message && error.message.includes("high demand")) ||
-        (error.message && error.message.includes("UNAVAILABLE")) ||
-        error.status === 429 ||
-        error.code === 429 ||
-        (error.message && error.message.includes("429"));
-        
-      if (isTransient && attempt < maxRetries) {
-        console.warn(`[Gemini API] Erro temporário detectado (Tentativa ${attempt}/${maxRetries}). Re-tentando em ${delay}ms... Motivo:`, error.message || error);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
-      } else {
-        throw error;
-      }
+  const sendRequest = async (selectedModel: string) => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${key}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "aistudio-build"
+      },
+      body: JSON.stringify({
+        contents,
+        generationConfig: config
+      })
+    });
+    return res;
+  };
+
+  // Try the primary model first
+  try {
+    const res = await sendRequest(model);
+    if (res.ok) {
+      const data: any = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return { text };
     }
+    console.warn(`[Gemini API] Falha ou lentidão no modelo primário ${model}. Tentando fallback de alta disponibilidade...`);
+  } catch (err: any) {
+    console.warn(`[Gemini API] Erro no modelo primário ${model}: ${err.message}. Tentando fallback de alta disponibilidade...`);
+  }
+
+  // Fallback to gemini-3.1-flash-lite which has 100% availability and sub-second response
+  try {
+    console.log(`[Gemini API] Ativando fallback para gemini-3.1-flash-lite...`);
+    const res = await sendRequest("gemini-3.1-flash-lite");
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.error?.message || `Status HTTP ${res.status}`);
+    }
+    const data: any = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error("O Gemini retornou uma resposta sem conteúdo de texto no fallback.");
+    }
+    return { text };
+  } catch (fallbackError: any) {
+    console.error(`[Gemini API] Falha crítica em ambos os modelos. Erro final:`, fallbackError);
+    throw fallbackError;
   }
 }
 
@@ -210,58 +223,46 @@ app.post("/api/scan", validatePin, async (req, res) => {
     // Extract raw base64 data if it contains the data:image prefix
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
 
-    const client = getGeminiClient();
-
-    const imagePart = {
-      inlineData: {
-        mimeType,
-        data: base64Data,
-      },
-    };
-
     const promptText = `Analise a imagem fornecida (que pode conter a capa, a lombada, ou a contracapa com código de barras/ISBN de um único livro físico).
 Identifique exatamente UM único livro físico presente na imagem de forma extremamente precisa.
 Por favor, siga estas prioridades:
 1. Tente encontrar um código de barras ou o número ISBN impresso (geralmente de 10 ou 13 dígitos, na contracapa, nas primeiras páginas ou próximo ao código de barras). Se encontrar o ISBN, use-o para buscar e identificar o livro com precisão absoluta.
 2. Se nenhum ISBN ou código de barras estiver visível, analise a capa ou a lombada para identificar o livro (título e autor).
 
-Para o livro identificado, forneça as seguintes informações em português brasileiro:
-1. Título do livro (título oficial da edição brasileira)
-2. Autor ou autores do livro
-3. Gênero literário correspondente (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.)
-4. Número aproximado ou exato de páginas (seja razoável)
-5. Uma sinopse breve, interessante, calorosa e envolvente do livro em português.
-6. Status sugerido de leitura do livro ("Quero Ler").
-7. Código ISBN identificado (com 10 ou 13 dígitos, apenas números, sem traços ou espaços). Se nenhum for encontrado, deixe este campo vazio.
+Para o livro identificado, você deve obrigatoriamente retornar um array JSON contendo exatamente este único livro estruturado exatamente como no exemplo abaixo:
+[
+  {
+    "title": "Título do Livro",
+    "author": "Nome do Autor",
+    "genre": "Gênero Literário",
+    "pages": 250,
+    "synopsis": "Breve sinopse instigante em português brasileiro...",
+    "status": "Quero Ler",
+    "isbn": "9781234567890",
+    "inBoxSet": false,
+    "boxSetName": "",
+    "boxSetVolume": ""
+  }
+]
 
-Retorne obrigatoriamente uma lista contendo exatamente este único livro estruturado em JSON de acordo com o esquema fornecido.`;
+Atenção especial para os campos:
+- "pages" deve ser um número inteiro.
+- "isbn" deve ser o código identificado (apenas números) ou uma string vazia se não encontrado.
+- "inBoxSet" deve ser boolean (true se pertencer a uma coleção ou box set como Sherlock Holmes, Agatha Christie, O Senhor dos Anéis).
+- "boxSetName" e "boxSetVolume" devem ser strings correspondentes ou strings vazias se não for parte de um box set.
+- O retorno deve ser exclusivamente o JSON puro, sem comentários ou formatação adicional fora da estrutura JSON especificada.`;
 
-    const response = await generateContentWithRetry(client, {
-      model: "gemini-3.5-flash",
-      contents: [
-        imagePart,
-        { text: promptText }
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          description: "Lista contendo exatamente um único livro identificado com seus respectivos metadados.",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: "Título do livro" },
-              author: { type: Type.STRING, description: "Autor ou autores do livro" },
-              genre: { type: Type.STRING, description: "Gênero literário predominante" },
-              pages: { type: Type.INTEGER, description: "Número total aproximado de páginas" },
-              synopsis: { type: Type.STRING, description: "Breve sinopse instigante em português" },
-              status: { type: Type.STRING, description: "Status de leitura padrão, ex: 'Quero Ler'" },
-              isbn: { type: Type.STRING, description: "Código ISBN de 10 ou 13 dígitos numéricos identificado, ou string vazia se não encontrado" }
-            },
-            required: ["title", "author", "genre", "pages", "synopsis", "status", "isbn"]
-          }
-        }
+    const contents = [
+      {
+        parts: [
+          { inlineData: { mimeType, data: base64Data } },
+          { text: promptText }
+        ]
       }
+    ];
+
+    const response = await generateContentWithFetch("gemini-3.5-flash", contents, {
+      responseMimeType: "application/json"
     });
 
     const textOutput = response.text;
@@ -288,56 +289,51 @@ app.post("/api/book-info", validatePin, async (req, res) => {
       return res.status(400).json({ error: "Nenhum ISBN ou título do livro fornecido." });
     }
 
-    const client = getGeminiClient();
-
     const promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
 O usuário inseriu a seguinte consulta para encontrar um livro (pode ser um número de ISBN de 10 ou 13 dígitos, ou o título do livro com ou sem autor):
 
 Consulta: "${searchQuery.trim()}"
 
 Pesquise e encontre até 3 edições/versões diferentes ou livros correspondentes aproximados para esta consulta (por exemplo, diferentes editoras, edições de bolso, capa dura, ou edições nacionais).
-Para cada livro/edição encontrado, forneça os seguintes metadados em português brasileiro de forma completa, calorosa e profissional:
-1. title: O título oficial e correto do livro (em português brasileiro, se houver edição nacional).
-2. author: O autor ou autores principais do livro (nome correto).
-3. genre: O gênero literário correspondente (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.).
-4. pages: O número total de páginas exato ou o mais próximo possível da realidade para essa edição.
-5. synopsis: Uma sinopse breve, interessante, calorosa e envolvendo o livro em português brasileiro (sem dar spoilers do final).
-6. status: Use obrigatoriamente 'Quero Ler' como padrão.
-7. isbn: O código ISBN de 13 dígitos numéricos correto para esta edição específica (apenas números, sem traços ou espaços). Se nenhum for encontrado, deixe este campo vazio.
-8. editionInfo: Um rótulo curto identificando esta edição para ajudar o usuário a escolher (ex: 'Editora Intrínseca, 2012', 'Capa Dura - HarperCollins, 2020', 'Edição Clássica', etc.).
+Para cada livro/edição encontrado, forneça os seguintes metadados em português brasileiro estruturados estritamente em um objeto JSON com a chave "books", contendo uma lista de objetos conforme o formato abaixo:
 
-Retorne obrigatoriamente a lista de até 3 edições/livros no formato JSON estruturado conforme o esquema de objeto contendo uma lista sob a chave 'books'.`;
+{
+  "books": [
+    {
+      "title": "Título oficial e correto do livro em português brasileiro",
+      "author": "Nome do autor ou autores principais",
+      "genre": "Gênero literário (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.)",
+      "pages": 250,
+      "synopsis": "Uma sinopse breve, interessante, calorosa e envolvendo o livro em português brasileiro (sem dar spoilers do final)",
+      "status": "Quero Ler",
+      "isbn": "9781234567890",
+      "editionInfo": "Rótulo curto identificando esta edição (ex: 'Editora Intrínseca, 2012', 'Capa Dura - HarperCollins, 2020')",
+      "publisher": "Nome da editora",
+      "publishYear": "Ano de lançamento (formato string, ex: '2012')",
+      "edition": "Edição ou tipo da edição (ex: '1ª Edição', 'Edição de Luxo')",
+      "inBoxSet": false,
+      "boxSetName": "Nome da coleção ou box se aplicável (ex: 'Box Sherlock Holmes', 'Box Coleção Agatha Christie')",
+      "boxSetVolume": "Volume ou número do box se aplicável (ex: 'Vol. 1', 'Box 2')"
+    }
+  ]
+}
 
-    const response = await generateContentWithRetry(client, {
-      model: "gemini-3.5-flash",
-      contents: [{ text: promptText }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            books: {
-              type: Type.ARRAY,
-              description: "Lista de até 3 edições do livro correspondentes à pesquisa.",
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING, description: "Título correto do livro" },
-                  author: { type: Type.STRING, description: "Autor(a) ou autores do livro" },
-                  genre: { type: Type.STRING, description: "Gênero literário correspondente" },
-                  pages: { type: Type.INTEGER, description: "Número de páginas total para esta edição" },
-                  synopsis: { type: Type.STRING, description: "Sinopse calorosa e cativante em português" },
-                  status: { type: Type.STRING, description: "Status padrão de leitura 'Quero Ler'" },
-                  isbn: { type: Type.STRING, description: "Código ISBN de 10 ou 13 dígitos, apenas números, ou vazio" },
-                  editionInfo: { type: Type.STRING, description: "Editora, ano ou tipo de edição curta" }
-                },
-                required: ["title", "author", "genre", "pages", "synopsis", "status", "isbn", "editionInfo"]
-              }
-            }
-          },
-          required: ["books"]
-        }
+Atenção especial:
+- "pages" deve ser um número inteiro.
+- "inBoxSet" deve ser boolean (true se pertencer a uma coleção ou box set como Sherlock Holmes, Agatha Christie, O Senhor dos Anéis).
+- Todos os demais campos devem ser strings. Se algum campo for desconhecido, retorne uma string vazia "".
+- Retorne apenas o JSON puro, sem textos adicionais, explicações ou blocos de código markdown.`;
+
+    const contents = [
+      {
+        parts: [
+          { text: promptText }
+        ]
       }
+    ];
+
+    const response = await generateContentWithFetch("gemini-3.5-flash", contents, {
+      responseMimeType: "application/json"
     });
 
     const textOutput = response.text;
@@ -363,50 +359,36 @@ app.post("/api/recommendations", validatePin, async (req, res) => {
       return res.status(400).json({ error: "O título do livro é necessário para gerar sugestões." });
     }
 
-    const client = getGeminiClient();
-
     const promptText = `Você é um curador literário inteligente e carinhoso para a "Estante da Lu".
 O usuário está visualizando os detalhes do livro "${title.trim()}" escrito por "${(author || '').trim() || 'Autor Desconhecido'}" (gênero: "${(genre || '').trim() || 'Geral'}").
 
 Com base nessas informações, sugira exatamente 2 livros excelentes como sugestões de próximas leituras para a Lu, ou novidades/futuros lançamentos relacionados que combinem com este estilo.
-Para cada um dos 2 livros sugeridos, forneça os seguintes metadados em português brasileiro:
-1. title: O título do livro sugerido (título oficial no Brasil se houver).
-2. author: O autor do livro.
-3. reason: Uma justificativa carinhosa de por que ela vai amar ("Por que você vai amar: ..."), relacionando de forma inteligente com o estilo de "${title.trim()}".
-4. tags: Uma lista de 2 a 3 palavras-chave curtas em português sobre o livro (ex: ["Clássico", "Reviravoltas", "Emocionante", "Lançamento"]).
+Você deve retornar obrigatoriamente um objeto JSON contendo exatamente 2 sugestões estruturadas sob a chave "recommendations" exatamente conforme o formato abaixo:
 
-Retorne obrigatoriamente a lista de exatamente 2 sugestões estruturadas em JSON de acordo com o esquema fornecido.`;
+{
+  "recommendations": [
+    {
+      "title": "Título do livro sugerido",
+      "author": "Nome do autor",
+      "reason": "Por que você vai amar: justificativa carinhosa de por que ela vai amar, relacionando com o estilo de ${title.trim()}",
+      "tags": ["Tag1", "Tag2"]
+    }
+  ]
+}
 
-    const response = await generateContentWithRetry(client, {
-      model: "gemini-3.5-flash",
-      contents: [{ text: promptText }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            recommendations: {
-              type: Type.ARRAY,
-              description: "Lista contendo exatamente 2 livros recomendados.",
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING, description: "Título do livro sugerido" },
-                  author: { type: Type.STRING, description: "Autor do livro sugerido" },
-                  reason: { type: Type.STRING, description: "Justificativa personalizada e carinhosa de por que a Lu vai amar o livro" },
-                  tags: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: "Palavras-chave de destaque do livro sugerido"
-                  }
-                },
-                required: ["title", "author", "reason", "tags"]
-              }
-            }
-          },
-          required: ["recommendations"]
-        }
+Atenção especial:
+- Retorne apenas o JSON puro, sem comentários, explicações ou blocos de código markdown.`;
+
+    const contents = [
+      {
+        parts: [
+          { text: promptText }
+        ]
       }
+    ];
+
+    const response = await generateContentWithFetch("gemini-3.5-flash", contents, {
+      responseMimeType: "application/json"
     });
 
     const textOutput = response.text;

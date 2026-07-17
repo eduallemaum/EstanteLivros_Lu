@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Book } from '../types';
-import { X, Sparkles, AlertCircle, Loader2, Search } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Loader2, Search, Library, Layers } from 'lucide-react';
 
 interface BookModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface BookModalProps {
   onSave: (book: Omit<Book, 'id'> & { id?: string }) => void;
   bookToEdit?: Book | null;
   isAiGenerated?: boolean;
+  existingBooks: Book[];
 }
 
 export const BookModal: React.FC<BookModalProps> = ({
@@ -16,6 +17,7 @@ export const BookModal: React.FC<BookModalProps> = ({
   onSave,
   bookToEdit,
   isAiGenerated = false,
+  existingBooks = [],
 }) => {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -26,6 +28,17 @@ export const BookModal: React.FC<BookModalProps> = ({
   const [coverImage, setCoverImage] = useState('');
   const [isSearchingCover, setIsSearchingCover] = useState(false);
   const [error, setError] = useState('');
+  
+  // New edition-related states
+  const [isbn, setIsbn] = useState('');
+  const [publisher, setPublisher] = useState('');
+  const [publishYear, setPublishYear] = useState('');
+  const [edition, setEdition] = useState('');
+  
+  // New Box Set states
+  const [inBoxSet, setInBoxSet] = useState(false);
+  const [boxSetName, setBoxSetName] = useState('');
+  const [boxSetVolume, setBoxSetVolume] = useState('');
   
   // AI Auto-Prefill States
   const [aiQuery, setAiQuery] = useState('');
@@ -41,6 +54,13 @@ export const BookModal: React.FC<BookModalProps> = ({
       setSynopsis(bookToEdit.synopsis || '');
       setStatus(bookToEdit.status || 'Quero Ler');
       setCoverImage(bookToEdit.coverImage || '');
+      setIsbn(bookToEdit.isbn || '');
+      setPublisher(bookToEdit.publisher || '');
+      setPublishYear(bookToEdit.publishYear || '');
+      setEdition(bookToEdit.edition || '');
+      setInBoxSet(!!bookToEdit.inBoxSet);
+      setBoxSetName(bookToEdit.boxSetName || '');
+      setBoxSetVolume(bookToEdit.boxSetVolume || '');
     } else {
       setTitle('');
       setAuthor('');
@@ -49,6 +69,13 @@ export const BookModal: React.FC<BookModalProps> = ({
       setSynopsis('');
       setStatus('Quero Ler');
       setCoverImage('');
+      setIsbn('');
+      setPublisher('');
+      setPublishYear('');
+      setEdition('');
+      setInBoxSet(false);
+      setBoxSetName('');
+      setBoxSetVolume('');
     }
     setError('');
     setAiQuery('');
@@ -57,6 +84,15 @@ export const BookModal: React.FC<BookModalProps> = ({
   }, [bookToEdit, isOpen]);
 
   if (!isOpen) return null;
+
+  // Client-side duplicate check
+  const duplicateBook = title.trim()
+    ? existingBooks.find(
+        (b) =>
+          b.title.trim().toLowerCase() === title.trim().toLowerCase() &&
+          b.id !== bookToEdit?.id
+      )
+    : undefined;
 
   const handleFetchCover = async () => {
     if (!title.trim()) {
@@ -130,6 +166,13 @@ export const BookModal: React.FC<BookModalProps> = ({
     setPages(book.pages || '');
     setSynopsis(book.synopsis || '');
     setStatus(book.status || 'Quero Ler');
+    setIsbn(book.isbn || '');
+    setPublisher(book.publisher || '');
+    setPublishYear(book.publishYear || '');
+    setEdition(book.edition || '');
+    setInBoxSet(false);
+    setBoxSetName('');
+    setBoxSetVolume('');
     setAiCandidates([]); // clear the candidates list after selecting
 
     // Tenta buscar a capa do livro baseado no título e autor selecionados
@@ -170,6 +213,13 @@ export const BookModal: React.FC<BookModalProps> = ({
       synopsis: synopsis.trim(),
       status,
       coverImage: coverImage.trim(),
+      isbn: isbn.trim(),
+      publisher: publisher.trim(),
+      publishYear: publishYear.trim(),
+      edition: edition.trim(),
+      inBoxSet,
+      boxSetName: inBoxSet ? boxSetName.trim() : '',
+      boxSetVolume: inBoxSet ? boxSetVolume.trim() : '',
     });
     onClose();
   };
@@ -221,6 +271,35 @@ export const BookModal: React.FC<BookModalProps> = ({
             <div className="bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-2xl flex gap-2 items-center text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {duplicateBook && (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-2 text-xs text-amber-900 animate-in fade-in duration-250 shadow-sm">
+              <div className="flex gap-2 items-center font-bold">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Título já cadastrado na estante!</span>
+              </div>
+              <p className="opacity-95 leading-relaxed">
+                Já existe uma obra chamada <strong className="text-amber-950 font-extrabold">"{duplicateBook.title}"</strong> de <strong>{duplicateBook.author}</strong> registrada na sua biblioteca.
+              </p>
+              {(duplicateBook.publisher || duplicateBook.publishYear || duplicateBook.edition) ? (
+                <div className="bg-white/75 p-2.5 rounded-xl border border-amber-100/60 mt-1 space-y-0.5 text-[11px]">
+                  <p className="font-semibold text-amber-950">Edição existente na estante:</p>
+                  <p className="opacity-90">
+                    {[
+                      duplicateBook.edition && `Edição: ${duplicateBook.edition}`,
+                      duplicateBook.publisher && `Editora: ${duplicateBook.publisher}`,
+                      duplicateBook.publishYear && `Ano: ${duplicateBook.publishYear}`
+                    ].filter(Boolean).join(' | ') || 'Sem especificações de edição registradas.'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] opacity-80 italic">A edição existente não possui informações de editora ou ano registradas para diferenciação.</p>
+              )}
+              <p className="text-[11px] font-semibold text-indigo-950 mt-2 leading-relaxed">
+                💡 Dica: Se esta for uma edição, ano ou tradução diferente, preencha os campos "Editora", "Ano de Lançamento" e "Edição/Tipo" abaixo para diferenciá-las em sua estante!
+              </p>
             </div>
           )}
 
@@ -433,6 +512,121 @@ export const BookModal: React.FC<BookModalProps> = ({
                   {s}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Bento box de Box Set / Coleção (Parte de um Box) */}
+          <div className="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100/60 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 uppercase tracking-wider">
+                <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Coleção / Box Set</span>
+              </h3>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  id="checkbox-in-box-set"
+                  type="checkbox"
+                  checked={inBoxSet}
+                  onChange={(e) => setInBoxSet(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                <span className="ml-2 text-xs font-semibold text-indigo-900">Parte de um Box</span>
+              </label>
+            </div>
+
+            {inBoxSet && (
+              <div className="grid grid-cols-2 gap-3.5 animate-in slide-in-from-top-1 duration-200">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-indigo-900/70 uppercase tracking-wider">Nome do Box</label>
+                  <input
+                    id="input-box-set-name"
+                    type="text"
+                    value={boxSetName}
+                    onChange={(e) => setBoxSetName(e.target.value)}
+                    placeholder="Ex: Box Sherlock Holmes"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs text-slate-800 transition-all bg-white font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-indigo-900/70 uppercase tracking-wider">Volume / Subdivisão</label>
+                  <input
+                    id="input-box-set-volume"
+                    type="text"
+                    value={boxSetVolume}
+                    onChange={(e) => setBoxSetVolume(e.target.value)}
+                    placeholder="Ex: Box 1, Vol. 2"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs text-slate-800 transition-all bg-white font-medium"
+                  />
+                </div>
+              </div>
+            )}
+            <p className="text-[10px] text-indigo-900/60 leading-normal">
+              Ative se o livro pertence a um box ou coleção (como os boxes temáticos da Agatha Christie) para organizá-los melhor na sua estante.
+            </p>
+          </div>
+
+          {/* Bento box das Informações da Edição (Diferencial de Duplicidade) */}
+          <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
+            <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+              <Library className="w-3.5 h-3.5 text-slate-500" />
+              <span>Dados da Edição (Opcional)</span>
+            </h3>
+            <p className="text-[10px] text-slate-500 leading-normal">
+              Preencha para catalogar detalhes de colecionador ou para diferenciar edições repetidas.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ISBN</label>
+                <input
+                  id="input-book-isbn"
+                  type="text"
+                  value={isbn}
+                  onChange={(e) => setIsbn(e.target.value)}
+                  placeholder="Ex: 97885..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bento-primary/20 focus:border-bento-primary text-xs text-slate-800 transition-all bg-white font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Editora</label>
+                <input
+                  id="input-book-publisher"
+                  type="text"
+                  value={publisher}
+                  onChange={(e) => setPublisher(e.target.value)}
+                  placeholder="Ex: Companhia das Letras"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bento-primary/20 focus:border-bento-primary text-xs text-slate-800 transition-all bg-white font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ano de Lançamento</label>
+                <input
+                  id="input-book-publish-year"
+                  type="text"
+                  value={publishYear}
+                  onChange={(e) => setPublishYear(e.target.value)}
+                  placeholder="Ex: 2012"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bento-primary/20 focus:border-bento-primary text-xs text-slate-800 transition-all bg-white font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Edição / Tipo</label>
+                <input
+                  id="input-book-edition"
+                  type="text"
+                  value={edition}
+                  onChange={(e) => setEdition(e.target.value)}
+                  placeholder="Ex: 2ª Edição / Capa Dura"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bento-primary/20 focus:border-bento-primary text-xs text-slate-800 transition-all bg-white font-medium"
+                />
+              </div>
             </div>
           </div>
 

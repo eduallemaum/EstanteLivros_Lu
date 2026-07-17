@@ -31,7 +31,8 @@ import {
   ChevronDown,
   Percent,
   Compass,
-  LayoutDashboard
+  LayoutDashboard,
+  Layers
 } from 'lucide-react';
 
 const DEFAULT_BOOKS: Book[] = [
@@ -84,6 +85,36 @@ const DEFAULT_BOOKS: Book[] = [
     synopsis: 'Uma profunda análise dos arquétipos femininos através de mitos, contos de fadas e histórias ancestrais, resgatando a essência da "Mulher Selvagem" e sua força vital oculta.',
     status: 'Quero Ler',
     coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51lO06NfLML._SX323_BO1,204,203,200_.jpg'
+  },
+  {
+    id: 'default_6',
+    title: 'Um Estudo em Vermelho',
+    author: 'Arthur Conan Doyle',
+    genre: 'Mistério/Policial',
+    pages: 168,
+    synopsis: 'A primeira história de Sherlock Holmes e Dr. Watson. O mistério começa com um cadáver encontrado em uma casa abandonada com a palavra "Rache" escrita em sangue na parede.',
+    status: 'Lido',
+    coverImage: 'https://images-na.ssl-images-amazon.com/images/I/51U631N6GQL.jpg',
+    inBoxSet: true,
+    boxSetName: 'Box Sherlock Holmes',
+    boxSetVolume: 'Vol. 1',
+    publisher: 'HarperCollins',
+    publishYear: '2019'
+  },
+  {
+    id: 'default_7',
+    title: 'E Não Sobrou Nenhum',
+    author: 'Agatha Christie',
+    genre: 'Mistério/Policial',
+    pages: 400,
+    synopsis: 'Dez pessoas sem ligação aparente são convidadas para uma ilha misteriosa. Uma a uma, elas começam a morrer conforme uma antiga canção infantil.',
+    status: 'Quero Ler',
+    coverImage: 'https://images-na.ssl-images-amazon.com/images/I/81e5F9V6M8L.jpg',
+    inBoxSet: true,
+    boxSetName: 'Coleção Agatha Christie - Box 1',
+    boxSetVolume: 'Volume 1',
+    publisher: 'HarperCollins',
+    publishYear: '2020'
   }
 ];
 
@@ -110,6 +141,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('Todos');
+  const [onlyBoxSets, setOnlyBoxSets] = useState<boolean>(false);
 
   // Modal states
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
@@ -297,8 +329,9 @@ export default function App() {
       (book.synopsis && book.synopsis.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus = selectedStatus === 'Todos' || book.status === selectedStatus;
+    const matchesBoxSet = !onlyBoxSets || book.inBoxSet;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesBoxSet;
   });
 
   // Calculate percentage of target goal
@@ -490,22 +523,38 @@ export default function App() {
                 <p className="text-xs text-slate-400 font-medium">A curadoria literária da jornalista Lu</p>
               </div>
 
-              {/* Status Pills inside the Main Box */}
-              <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl self-stretch sm:self-auto overflow-x-auto no-scrollbar">
-                {['Todos', 'Quero Ler', 'Lendo', 'Lido'].map((status) => (
-                  <button
-                    key={status}
-                    id={`filter-pill-${status.replace(' ', '-')}`}
-                    onClick={() => setSelectedStatus(status)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                      selectedStatus === status
-                        ? 'bg-white text-bento-primary shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
+              {/* Filters & Toggles inside the Main Box */}
+              <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto">
+                <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
+                  {['Todos', 'Quero Ler', 'Lendo', 'Lido'].map((status) => (
+                    <button
+                      key={status}
+                      id={`filter-pill-${status.replace(' ', '-')}`}
+                      onClick={() => setSelectedStatus(status)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                        selectedStatus === status
+                          ? 'bg-white text-bento-primary shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  id="btn-filter-box-sets"
+                  onClick={() => setOnlyBoxSets(!onlyBoxSets)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    onlyBoxSets
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                  title="Exibir apenas livros que fazem parte de um Box ou Coleção"
+                >
+                  <Layers className={`w-3.5 h-3.5 ${onlyBoxSets ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span>Boxes</span>
+                </button>
               </div>
             </div>
 
@@ -693,6 +742,7 @@ export default function App() {
         onSave={handleSaveBook}
         bookToEdit={editingBook}
         isAiGenerated={isReviewMode}
+        existingBooks={books}
       />
 
       <ScannerModal
