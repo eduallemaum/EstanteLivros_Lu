@@ -254,6 +254,14 @@
           <i data-lucide="layers" class="w-4 h-4"></i>
           <span>Boxes / Coleções</span>
         </button>
+        <button
+          id="nav-btn-Desejos"
+          onclick="filterStatus('Desejos')"
+          class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap"
+        >
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Lista de Desejos</span>
+        </button>
       </nav>
 
       <div class="h-px bg-slate-200/70 my-1 hidden md:block"></div>
@@ -346,11 +354,11 @@
         <section class="md:col-span-8 md:row-span-4 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col border border-slate-100">
           <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
             <div>
-              <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Minha Estante</h2>
-              <p class="text-xs text-slate-400 font-medium">A curadoria literária da jornalista Lu</p>
+              <h2 id="shelf-title" class="text-xl font-extrabold text-slate-800 tracking-tight">Minha Estante</h2>
+              <p id="shelf-subtitle" class="text-xs text-slate-400 font-medium">A curadoria literária da jornalista Lu</p>
             </div>
 
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto shrink-0 justify-between xl:justify-start">
+            <div id="shelf-controls" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto shrink-0 justify-between xl:justify-start">
               <!-- Sort Selector -->
               <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-xl shadow-sm">
                 <i data-lucide="arrow-down-az" class="w-3.5 h-3.5 text-[#7986cb]"></i>
@@ -667,6 +675,24 @@
               </div>
             </div>
 
+          </div>
+
+          <!-- Box Set / Coleção Grouping Section -->
+          <div id="detail-box-set-section" class="border-t border-slate-100 pt-5 hidden">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <div class="p-1 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <i data-lucide="layers" class="w-4 h-4"></i>
+                </div>
+                <h3 class="font-sans font-bold text-slate-800 text-sm md:text-base">Outros Livros da Coleção / Box</h3>
+              </div>
+              <span id="detail-box-set-badge" class="text-[10px] bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-bold"></span>
+            </div>
+            
+            <!-- List of other volumes in this box set -->
+            <div id="detail-box-set-volumes" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <!-- Injected dynamically -->
+            </div>
           </div>
 
           <!-- Recommendations Section -->
@@ -1632,7 +1658,10 @@
         formSelectedStatus: "Quero Ler",
         aiCandidates: [],
         isAiLoading: false,
-        duplicateBypass: false
+        duplicateBypass: false,
+        wishlist: [],
+        wishlistLoading: true,
+        promotingWishlistId: null
       };
 
       // Simple stable hash for covers
@@ -1749,6 +1778,29 @@
               loadLocalBackup();
             }
           );
+
+          // Subscrição em tempo real para a Lista de Desejos
+          const qWish = query(collection(db, "wishlist"), orderBy("createdAt", "desc"));
+          onSnapshot(
+            qWish,
+            (snapshot) => {
+              const wishlistData = [];
+              snapshot.forEach((docSnap) => {
+                wishlistData.push({ id: docSnap.id, ...docSnap.data() });
+              });
+              state.wishlist = wishlistData;
+              state.wishlistLoading = false;
+              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(wishlistData));
+              renderApp();
+            },
+            (error) => {
+              console.warn("Firestore wishlist subscription failed, loading backup:", error);
+              const backupWish = localStorage.getItem("estante_da_lu_wishlist_backup");
+              state.wishlist = backupWish ? JSON.parse(backupWish) : [];
+              state.wishlistLoading = false;
+              renderApp();
+            }
+          );
         } catch (err) {
           console.warn("Firestore initialization error, using local backup:", err);
           loadLocalBackup();
@@ -1764,6 +1816,11 @@
           state.books = DEFAULT_BOOKS;
         }
         state.loading = false;
+
+        const backupWish = localStorage.getItem("estante_da_lu_wishlist_backup");
+        state.wishlist = backupWish ? JSON.parse(backupWish) : [];
+        state.wishlistLoading = false;
+
         renderApp();
       }
 
@@ -1884,6 +1941,247 @@
         const sortSelector = document.getElementById("sort-selector");
         if (sortSelector) {
           sortSelector.value = state.sortBy;
+        }
+
+        // Custom Wishlist View for 'Desejos'
+        const shelfTitle = document.getElementById("shelf-title");
+        const shelfSubtitle = document.getElementById("shelf-subtitle");
+        const shelfControls = document.getElementById("shelf-controls");
+
+        if (state.selectedStatus === "Desejos") {
+          if (shelfTitle) shelfTitle.innerText = "Lista de Desejos";
+          if (shelfSubtitle) shelfSubtitle.innerText = "Indicações e livros no radar da Lu";
+          if (shelfControls) shelfControls.classList.add("hidden");
+          if (emptyState) emptyState.classList.add("hidden");
+          if (booksGrid) booksGrid.classList.remove("hidden");
+          
+          booksGrid.className = "col-span-full flex flex-col gap-5 w-full";
+          
+          const wishlistItemsHtml = state.wishlist.map(item => {
+            const cleanTitle = (item.title || "Sem Título").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const cleanAuthor = (item.author || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            return `
+              <div class="flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-100/30 border border-slate-100 rounded-2xl shadow-xs transition-all duration-200">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <i data-lucide="bookmark-plus" class="w-4 h-4"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <h4 class="font-bold text-slate-800 text-xs sm:text-sm truncate leading-snug">${item.title}</h4>
+                    <p class="text-[10px] text-slate-400 font-semibold truncate">por ${item.author || "Autor Desconhecido"}</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button 
+                    onclick="window.promoteWishlistItem('${item.id}', '${cleanTitle}', '${cleanAuthor}')"
+                    class="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded-lg transition-all active:scale-95 cursor-pointer"
+                    title="Adquiri este livro! Registrar na Estante Física"
+                  >
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    <span>Registrar</span>
+                  </button>
+                  
+                  <button 
+                    onclick="window.removeWishlistItem('${item.id}')"
+                    class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 cursor-pointer"
+                    title="Remover"
+                  >
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          booksGrid.innerHTML = `
+            <div class="space-y-5">
+              <!-- Quick Add Mini Form -->
+              <form onsubmit="window.addWishlistItem(event)" class="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100/30 flex flex-col sm:flex-row gap-3">
+                <div class="flex-1 space-y-1">
+                  <label class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Título do Livro</label>
+                  <input 
+                    id="wishlist-title" 
+                    type="text" 
+                    required 
+                    placeholder="Ex: Torto Arado..."
+                    class="w-full bg-white border border-slate-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200 rounded-xl py-2 px-3 text-xs transition-all outline-none font-medium text-slate-700"
+                  />
+                </div>
+                <div class="flex-1 space-y-1">
+                  <label class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Autor (Opcional)</label>
+                  <input 
+                    id="wishlist-author" 
+                    type="text" 
+                    placeholder="Ex: Itamar Vieira..."
+                    class="w-full bg-white border border-slate-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200 rounded-xl py-2 px-3 text-xs transition-all outline-none font-medium text-slate-700"
+                  />
+                </div>
+                <div class="sm:self-end">
+                  <button 
+                    type="submit" 
+                    class="w-full sm:w-auto bg-[#7986cb] hover:bg-[#7986cb]/90 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95"
+                  >
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    <span>Adicionar</span>
+                  </button>
+                </div>
+              </form>
+
+              <!-- List Container -->
+              <div class="space-y-3">
+                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="list-todo" class="w-3.5 h-3.5"></i>
+                  <span>No Radar (${state.wishlist.length})</span>
+                </h4>
+                
+                ${state.wishlist.length === 0 ? `
+                  <div class="flex flex-col items-center justify-center py-10 px-4 border-2 border-dashed border-slate-100 rounded-2xl text-center bg-slate-50/20">
+                    <div class="p-2.5 bg-indigo-50 text-indigo-400 rounded-full mb-3">
+                      <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                    <p class="font-bold text-slate-700 text-xs mb-1">Nenhum livro no radar</p>
+                    <p class="text-[10px] text-slate-400 max-w-xs">Adicione títulos que você deseja ler ou indicações rápidas no formulário acima!</p>
+                  </div>
+                ` : `
+                  <div class="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1 no-scrollbar">
+                    ${wishlistItemsHtml}
+                  </div>
+                `}
+              </div>
+            </div>
+          `;
+          
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        } else {
+          if (shelfTitle) shelfTitle.innerText = "Minha Estante";
+          if (shelfSubtitle) shelfSubtitle.innerText = "A curadoria literária da jornalista Lu";
+          if (shelfControls) shelfControls.classList.remove("hidden");
+        }
+
+        // Generate Custom Box Set Grouped View if Box Set filter is active
+        if (state.selectedStatus === "Box Set") {
+          booksGrid.className = "col-span-full flex flex-col gap-6 w-full";
+          
+          // Group books by boxSetName
+          const groups = {};
+          filteredBooks.forEach(b => {
+            const groupName = b.boxSetName || "Coleções Sem Nome";
+            if (!groups[groupName]) groups[groupName] = [];
+            groups[groupName].push(b);
+          });
+          
+          // Sort each group's volumes
+          Object.keys(groups).forEach(groupName => {
+            groups[groupName].sort((a, b) => {
+              const parseVol = (volStr) => {
+                const match = (volStr || "").match(/\d+/);
+                return match ? parseInt(match[0], 10) : 999;
+              };
+              const volA = parseVol(a.boxSetVolume);
+              const volB = parseVol(b.boxSetVolume);
+              if (volA !== volB) return volA - volB;
+              return (a.title || "").localeCompare(b.title || "");
+            });
+          });
+          
+          if (filteredBooks.length === 0) {
+            booksGrid.classList.add("hidden");
+            emptyState.classList.remove("hidden");
+          } else {
+            booksGrid.classList.remove("hidden");
+            emptyState.classList.add("hidden");
+          }
+
+          booksGrid.innerHTML = Object.keys(groups).map(groupName => {
+            const groupBooks = groups[groupName];
+            const totalInGroup = groupBooks.length;
+            const readInGroup = groupBooks.filter(b => b.status === "Lido").length;
+            
+            const progressPercent = Math.round((readInGroup / totalInGroup) * 100) || 0;
+            
+            const groupBooksHtml = groupBooks.map(book => {
+              const hashVal = getHash(book.title);
+              const theme = PASTEL_THEMES[hashVal % PASTEL_THEMES.length];
+              
+              const statusIcon = book.status === "Lido" ? "check-circle" : book.status === "Lendo" ? "book-open" : "clock";
+              const statusColor = book.status === "Lido" ? "text-emerald-500 bg-emerald-50 border-emerald-100" : book.status === "Lendo" ? "text-violet-500 bg-violet-50 border-violet-100 animate-pulse" : "text-amber-500 bg-amber-50 border-amber-100";
+              const statusLabel = book.status || "Quero Ler";
+              
+              let coverHTML = "";
+              if (book.coverImage && (book.coverImage.startsWith("http") || book.coverImage.startsWith("data:image"))) {
+                coverHTML = `
+                  <img src="${book.coverImage}" class="w-12 h-18 object-cover rounded-md shadow-sm border border-slate-100 group-hover:scale-105 transition-transform duration-200" referrerPolicy="no-referrer" />
+                `;
+              } else {
+                coverHTML = `
+                  <div class="w-12 h-18 rounded-md bg-gradient-to-br ${theme.bg} flex flex-col justify-between p-1.5 border border-slate-100 text-slate-800 text-[8px] leading-tight text-center">
+                    <span class="font-bold line-clamp-2">${book.title}</span>
+                    <div class="w-1.5 h-1.5 rounded-full ${theme.accent} mx-auto"></div>
+                  </div>
+                `;
+              }
+              
+              return `
+                <div onclick="openBookDetailsModal('${book.id}')" class="group bg-white hover:bg-slate-50/50 border border-slate-100 hover:border-indigo-100 p-2.5 rounded-xl flex gap-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow active:scale-[0.98]">
+                  ${coverHTML}
+                  <div class="min-w-0 flex-1 flex flex-col justify-between py-0.5">
+                    <div class="space-y-0.5">
+                      <h4 class="font-bold text-slate-800 text-xs sm:text-sm truncate group-hover:text-indigo-600 transition-colors" title="${book.title}">${book.title}</h4>
+                      <p class="text-[10px] text-slate-400 font-medium truncate">por ${book.author}</p>
+                    </div>
+                    
+                    <div class="flex items-center justify-between gap-1.5 mt-1.5">
+                      <span class="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-md font-mono">${book.boxSetVolume || "Vol. N/A"}</span>
+                      <span class="text-[9px] px-1.5 py-0.5 rounded-md border flex items-center gap-1 font-semibold ${statusColor}">
+                        <i data-lucide="${statusIcon}" class="w-2.5 h-2.5"></i>
+                        <span>${statusLabel}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join("");
+            
+            return `
+              <div class="bg-gradient-to-br from-slate-50/70 to-indigo-50/10 border border-slate-100 hover:border-indigo-100/50 rounded-2xl p-5 shadow-sm space-y-4 transition-all duration-300">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <div class="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg shadow-sm">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                      </div>
+                      <h3 class="font-sans font-bold text-slate-800 text-base md:text-lg">${groupName}</h3>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium ml-1">Contém ${totalInGroup} volumes • Coleção física da família</p>
+                  </div>
+                  
+                  <div class="flex flex-col items-end gap-1 shrink-0 bg-white/70 border border-slate-100/50 p-2.5 rounded-xl shadow-xs">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Leitura Completa</span>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${readInGroup} / ${totalInGroup} lidos</span>
+                      <span class="text-sm font-black text-indigo-600">${progressPercent}%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Collection Progress Bar -->
+                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden shadow-inner">
+                  <div class="bg-gradient-to-r from-[#7986cb] to-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${progressPercent}%"></div>
+                </div>
+                
+                <!-- Volumes Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                  ${groupBooksHtml}
+                </div>
+              </div>
+            `;
+          }).join("");
+          
+          if (window.lucide) window.lucide.createIcons();
+          return;
         }
 
         // Generate Grid Cards or List Rows
@@ -2559,7 +2857,7 @@
         state.selectedStatus = status;
         
         // Toggle selected styling on Navigation (Sidebar)
-        ["Todos", "Quero Ler", "Lendo", "Lido", "Box Set"].forEach((s) => {
+        ["Todos", "Quero Ler", "Lendo", "Lido", "Box Set", "Desejos"].forEach((s) => {
           const btn = document.getElementById(`nav-btn-${s.replace(" ", "-")}`);
           if (btn) {
             if (s === status) {
@@ -2869,6 +3167,76 @@
 
         const synopsisEl = document.getElementById("detail-synopsis");
         synopsisEl.innerText = book.synopsis || "Nenhuma sinopse disponível para este livro.";
+
+        // Render Box Set sibling volumes
+        const detailBoxSetSection = document.getElementById("detail-box-set-section");
+        const detailBoxSetBadge = document.getElementById("detail-box-set-badge");
+        const detailBoxSetVolumes = document.getElementById("detail-box-set-volumes");
+        
+        if (detailBoxSetSection && detailBoxSetBadge && detailBoxSetVolumes) {
+          if (book.inBoxSet && book.boxSetName) {
+            // Find all books in the same box set
+            const boxBooks = state.books.filter(b => 
+              b.inBoxSet && 
+              b.boxSetName && 
+              b.boxSetName.toLowerCase().trim() === book.boxSetName.toLowerCase().trim()
+            );
+            
+            // Sort books: if boxSetVolume contains a number, sort by that number; otherwise alphabetical
+            boxBooks.sort((a, b) => {
+              const parseVol = (volStr) => {
+                const match = (volStr || "").match(/\d+/);
+                return match ? parseInt(match[0], 10) : 999;
+              };
+              const volA = parseVol(a.boxSetVolume);
+              const volB = parseVol(b.boxSetVolume);
+              if (volA !== volB) return volA - volB;
+              return (a.title || "").localeCompare(b.title || "");
+            });
+            
+            if (boxBooks.length > 0) {
+              detailBoxSetSection.classList.remove("hidden");
+              detailBoxSetBadge.innerText = `${boxBooks.length} livro(s) no Box`;
+              
+              detailBoxSetVolumes.innerHTML = boxBooks.map(b => {
+                const isCurrent = b.id === bookId;
+                const statusIcon = b.status === "Lido" ? "check-circle" : b.status === "Lendo" ? "book-open" : "clock";
+                const statusColor = b.status === "Lido" ? "text-emerald-500" : b.status === "Lendo" ? "text-violet-500 animate-pulse" : "text-amber-500";
+                
+                let coverHtml = "";
+                if (b.coverImage) {
+                  coverHtml = `<img src="${b.coverImage}" class="w-8 h-11 object-cover rounded shadow-sm shrink-0 border border-slate-100" referrerPolicy="no-referrer" />`;
+                } else {
+                  coverHtml = `
+                    <div class="w-8 h-11 rounded shadow-sm shrink-0 bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center border border-indigo-100">
+                      <span class="text-[9px] font-bold text-indigo-400">${b.title ? b.title.substring(0, 2).toUpperCase() : "LU"}</span>
+                    </div>
+                  `;
+                }
+                
+                return `
+                  <button type="button" 
+                          onclick="${isCurrent ? "" : `window.openBookDetailsModal('${b.id}')`}"
+                          class="flex items-center gap-2 p-2 rounded-xl text-left border transition-all text-xs w-full ${isCurrent ? "bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200" : "bg-white hover:bg-slate-50 border-slate-100 hover:border-indigo-100 cursor-pointer"}"
+                          ${isCurrent ? "disabled" : ""}>
+                    ${coverHtml}
+                    <div class="min-w-0 flex-1 space-y-0.5">
+                      <div class="font-bold text-slate-800 truncate leading-snug" title="${b.title}">${b.title}</div>
+                      <div class="flex items-center gap-1.5 text-[10px] text-slate-500">
+                        <span class="font-semibold bg-indigo-50/60 text-indigo-600 px-1 py-0.2 rounded font-mono">${b.boxSetVolume || "Vol. N/A"}</span>
+                        <i data-lucide="${statusIcon}" class="w-3 h-3 ${statusColor}"></i>
+                      </div>
+                    </div>
+                  </button>
+                `;
+              }).join("");
+            } else {
+              detailBoxSetSection.classList.add("hidden");
+            }
+          } else {
+            detailBoxSetSection.classList.add("hidden");
+          }
+        }
         
         // Show modal container
         const modal = document.getElementById("book-details-modal");
@@ -3143,6 +3511,19 @@
               candidatesList.appendChild(card);
             });
 
+            // If there are multiple candidates and they are part of a box set, add a bulk-creation button!
+            if (books.length > 1 && books.some(b => b.inBoxSet)) {
+              const allBtnContainer = document.createElement("div");
+              allBtnContainer.className = "pt-3 border-t border-indigo-100 mt-3";
+              allBtnContainer.innerHTML = `
+                <button type="button" onclick="window.addAllBoxSetBooks()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95">
+                  <i data-lucide="layers" class="w-4 h-4"></i>
+                  <span>Cadastrar Coleção Completa (${books.length} itens)</span>
+                </button>
+              `;
+              candidatesList.appendChild(allBtnContainer);
+            }
+
             candidatesContainer.classList.remove("hidden");
           }
 
@@ -3180,6 +3561,12 @@
         document.getElementById("form-edition").value = book.edition || "";
         window.setFormStatus(book.status || "Quero Ler");
 
+        const inBoxSet = !!book.inBoxSet;
+        document.getElementById("checkbox-in-box-set").checked = inBoxSet;
+        document.getElementById("form-box-set-name").value = book.boxSetName || "";
+        document.getElementById("form-box-set-volume").value = book.boxSetVolume || "";
+        window.toggleBoxSetFields(inBoxSet);
+
         // Clear error
         const errorBanner = document.getElementById("modal-error-banner");
         if (errorBanner) errorBanner.classList.add("hidden");
@@ -3213,6 +3600,96 @@
               btnFetch.innerHTML = `<i data-lucide="search" class="w-3.5 h-3.5"></i> Buscar Capa`;
               if (window.lucide) window.lucide.createIcons();
             }
+          }
+        }
+      };
+
+      window.addAllBoxSetBooks = async function() {
+        if (localStorage.getItem("estante_da_lu_role") !== "admin") {
+          alert("Você não tem permissão para cadastrar livros.");
+          return;
+        }
+        
+        const candidates = state.aiCandidates;
+        if (!candidates || candidates.length === 0) return;
+        
+        const errorBanner = document.getElementById("modal-error-banner");
+        const errorText = document.getElementById("modal-error-text");
+        if (errorBanner) errorBanner.classList.add("hidden");
+        
+        const candidatesList = document.getElementById("ai-candidates-list");
+        const originalHtml = candidatesList ? candidatesList.innerHTML : "";
+        
+        if (candidatesList) {
+          candidatesList.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 gap-3 text-indigo-600">
+              <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span class="font-bold text-xs text-slate-700 animate-pulse">Cadastrando coleção... Salvando ${candidates.length} volumes no banco de dados. Por favor, aguarde.</span>
+            </div>
+          `;
+        }
+        
+        try {
+          // Add each candidate one by one
+          for (let i = 0; i < candidates.length; i++) {
+            const book = candidates[i];
+            
+            // Get cover URL: use direct openlibrary fallback if ISBN is present
+            let coverUrl = book.coverImage || "";
+            if (!coverUrl && book.isbn) {
+              coverUrl = `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg`;
+            }
+            if (!coverUrl) {
+              try {
+                const fetched = await fetchBookCover(book.title || "", book.author || "");
+                if (fetched) coverUrl = fetched;
+              } catch (e) {
+                console.warn("Auto cover fetch error during batch registration:", e);
+              }
+            }
+            
+            const cleanData = {
+              title: book.title || "Sem Título",
+              author: book.author || "Sem Autor",
+              coverImage: coverUrl || "",
+              genre: book.genre || "Não classificado",
+              pages: parseInt(book.pages, 10) || 0,
+              synopsis: book.synopsis || "",
+              status: "Quero Ler",
+              isbn: book.isbn || "",
+              publisher: book.publisher || "",
+              publishYear: book.publishYear || "",
+              edition: book.edition || "",
+              inBoxSet: true, // Force true since it's a batch collection save
+              boxSetName: book.boxSetName || "Coleção Integrada",
+              boxSetVolume: book.boxSetVolume || `Vol. ${i + 1}`
+            };
+            
+            try {
+              await addDoc(collection(db, "books"), {
+                ...cleanData,
+                createdAt: serverTimestamp()
+              });
+            } catch (err) {
+              console.warn("Firestore save failed during batch, performing local backup save:", err);
+              const newLocal = { ...cleanData, id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 5)}` };
+              state.books = [newLocal, ...state.books];
+              localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+            }
+          }
+          
+          window.closeBookModal();
+          alert(`${candidates.length} volumes da coleção foram cadastrados e vinculados com sucesso!`);
+          renderApp();
+        } catch (err) {
+          console.error("Batch creation failed:", err);
+          if (candidatesList) candidatesList.innerHTML = originalHtml;
+          if (errorBanner && errorText) {
+            errorText.innerText = "Falha ao salvar a coleção. Tente salvar os livros individualmente.";
+            errorBanner.classList.remove("hidden");
           }
         }
       };
@@ -3428,6 +3905,21 @@
           }
         }
 
+        // Se estivermos promovendo um item da lista de desejos, remova-o agora que foi cadastrado com sucesso!
+        if (state.promotingWishlistId) {
+          try {
+            if (state.promotingWishlistId.startsWith("local_")) {
+              state.wishlist = state.wishlist.filter(item => item.id !== state.promotingWishlistId);
+              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+            } else {
+              await deleteDoc(doc(db, "wishlist", state.promotingWishlistId));
+            }
+          } catch (e) {
+            console.warn("Não foi possível excluir o item promovido da Lista de Desejos:", e);
+          }
+          state.promotingWishlistId = null;
+        }
+
         window.closeBookModal();
         renderApp();
       };
@@ -3450,6 +3942,82 @@
           localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
           renderApp();
         }
+      };
+
+      // 8.5 Wishlist Operations
+      window.addWishlistItem = async function(event) {
+        if (event && typeof event.preventDefault === "function") event.preventDefault();
+        
+        const titleInput = document.getElementById("wishlist-title");
+        const authorInput = document.getElementById("wishlist-author");
+        
+        const title = titleInput ? titleInput.value.trim() : "";
+        const author = authorInput ? authorInput.value.trim() : "";
+        
+        if (!title) {
+          alert("Por favor, digite o título do livro.");
+          return;
+        }
+        
+        const cleanData = {
+          title: title,
+          author: author || "Autor Desconhecido"
+        };
+        
+        try {
+          await addDoc(collection(db, "wishlist"), {
+            ...cleanData,
+            createdAt: serverTimestamp()
+          });
+          
+          if (titleInput) titleInput.value = "";
+          if (authorInput) authorInput.value = "";
+        } catch (err) {
+          console.warn("Firestore save failed for wishlist, saving locally:", err);
+          const newLocal = { ...cleanData, id: `local_${Date.now()}` };
+          state.wishlist = [newLocal, ...state.wishlist];
+          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          
+          if (titleInput) titleInput.value = "";
+          if (authorInput) authorInput.value = "";
+          renderApp();
+        }
+      };
+
+      window.removeWishlistItem = async function(id) {
+        if (!confirm("Deseja remover este livro da sua Lista de Desejos?")) return;
+        
+        try {
+          if (id.startsWith("local_")) {
+            state.wishlist = state.wishlist.filter(item => item.id !== id);
+            localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+            renderApp();
+          } else {
+            await deleteDoc(doc(db, "wishlist", id));
+          }
+        } catch (err) {
+          console.error("Failed to delete wishlist item:", err);
+          state.wishlist = state.wishlist.filter(item => item.id !== id);
+          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          renderApp();
+        }
+      };
+
+      window.promoteWishlistItem = function(id, title, author) {
+        state.promotingWishlistId = id;
+        
+        // Open the book creation modal
+        window.openAddBookModal();
+        
+        // Fill the fields
+        const titleField = document.getElementById("form-title");
+        const authorField = document.getElementById("form-author");
+        
+        if (titleField) titleField.value = title || "";
+        if (authorField) authorField.value = author || "";
+        
+        // Automatically trigger cover fetch!
+        window.triggerCoverFetch();
       };
 
       // 9. Camera & Artificial Intelligence Scanner Module

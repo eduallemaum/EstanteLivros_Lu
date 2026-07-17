@@ -289,13 +289,91 @@ app.post("/api/book-info", validatePin, async (req, res) => {
       return res.status(400).json({ error: "Nenhum ISBN ou título do livro fornecido." });
     }
 
-    const promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
+    let brasilApiData: any = null;
+    const cleanedQuery = searchQuery.trim().replace(/[^0-9]/g, "");
+    const isIsbn = (cleanedQuery.length === 10 || cleanedQuery.length === 13) && /^\d+$/.test(cleanedQuery);
+
+    if (isIsbn) {
+      try {
+        console.log(`Buscando ISBN ${cleanedQuery} na BrasilAPI...`);
+        const bRes = await fetch(`https://brasilapi.com.br/api/isbn/v1/${cleanedQuery}`);
+        if (bRes.ok) {
+          brasilApiData = await bRes.json();
+          console.log("Sucesso ao obter dados do livro da BrasilAPI:", brasilApiData);
+        } else {
+          console.log(`BrasilAPI retornou status ${bRes.status} para o ISBN ${cleanedQuery}`);
+        }
+      } catch (err) {
+        console.error("Falha ao consultar BrasilAPI:", err);
+      }
+    }
+
+    let promptText = "";
+    if (brasilApiData) {
+      const bAuthors = Array.isArray(brasilApiData.authors) ? brasilApiData.authors.join(", ") : (brasilApiData.authors || "Não informado");
+      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
+O usuário buscou o ISBN "${cleanedQuery}" na base nacional de livros do Brasil (BrasilAPI), que retornou com sucesso os seguintes metadados oficiais:
+- Título Oficial: "${brasilApiData.title || ''}"
+- Autor(es): "${bAuthors}"
+- Editora Oficial: "${brasilApiData.publisher || ''}"
+- Ano de Lançamento: "${brasilApiData.year || ''}"
+- Páginas: ${brasilApiData.page_count || 0}
+- Sinopse (se houver): "${brasilApiData.synopsis || ''}"
+
+Seu trabalho é gerar uma resposta no formato JSON estruturado usando os metadados reais acima. Para os campos abaixo, use sua inteligência artificial para preencher/complementar:
+1. "synopsis": Se a sinopse fornecida acima for vazia ou curta demais, elabore uma sinopse cativante, calorosa, interessante e envolvendo o livro em português brasileiro (sem spoilers). Se a original for boa, preserve-a ou enriqueça-a.
+2. "genre": Estime o gênero literário correto baseado na obra (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.).
+3. "inBoxSet", "boxSetName", "boxSetVolume": Verifique com muita atenção se este título/ISBN de fato pertence a um Box Set, Coleção ou Trilogia de livros famosa (por exemplo, "Box Sherlock Holmes", "Box Trilogia Espacial", "Box Harry Potter").
+
+Caso o título ou os metadados indiquem que esta consulta/ISBN se refere a um Box Set completo ou coleção contendo múltiplos volumes/livros (por exemplo, contendo termos como "Box", "Coleção", "Trilogia", "Kit", "Volumes"):
+Você deve obrigatoriamente retornar na lista "books" múltiplos objetos correspondentes:
+- Primeiro, um objeto que represente o "Box" em si (o pacote completo/bundle), com o título indicando que é o Box (ex: "Box Harry Potter - Coleção Completa"), "boxSetVolume" como "Completo" ou "Box" e "inBoxSet": true.
+- Depois, inclua cada um dos livros individuais pertencentes a este Box Set (os volumes que o compõem), ordenados por volume.
+- Para todos esses registros (tanto o Box quanto os livros individuais), marque "inBoxSet": true e preencha "boxSetName" com EXATAMENTE o mesmo nome (ex: "Box Harry Potter") para que o sistema possa agrupá-los e linká-los perfeitamente.
+
+Se for um livro individual normal, forneça de 1 a 3 edições/versões correspondentes, com "inBoxSet": false (ou preenchendo as chaves correspondentes se ele pertencer a alguma coleção famosa).
+
+Forneça a resposta estruturada estritamente em um objeto JSON com a chave "books", contendo uma lista de objetos conforme o formato abaixo:
+
+{
+  "books": [
+    {
+      "title": "${(brasilApiData.title || '').replace(/"/g, '\\"')}",
+      "author": "${bAuthors.replace(/"/g, '\\"')}",
+      "genre": "Gênero estimado",
+      "pages": ${brasilApiData.page_count || 0},
+      "synopsis": "Sua sinopse bem elaborada aqui",
+      "status": "Quero Ler",
+      "isbn": "${cleanedQuery}",
+      "editionInfo": "${(brasilApiData.publisher || '').replace(/"/g, '\\"')}${brasilApiData.year ? `, ${brasilApiData.year}` : ''}",
+      "publisher": "${(brasilApiData.publisher || '').replace(/"/g, '\\"')}",
+      "publishYear": "${brasilApiData.year ? String(brasilApiData.year) : ''}",
+      "edition": "Edição Brasileira",
+      "inBoxSet": false,
+      "boxSetName": "",
+      "boxSetVolume": ""
+    }
+  ]
+}
+
+Atenção especial:
+- "pages" deve ser um número inteiro.
+- "inBoxSet" deve ser boolean.
+- Retorne apenas o JSON puro, sem textos explicativos adicionais ou blocos de código markdown.`;
+    } else {
+      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
 O usuário inseriu a seguinte consulta para encontrar um livro (pode ser um número de ISBN de 10 ou 13 dígitos, ou o título do livro com ou sem autor):
 
 Consulta: "${searchQuery.trim()}"
 
-Pesquise e encontre até 3 edições/versões diferentes ou livros correspondentes aproximados para esta consulta (por exemplo, diferentes editoras, edições de bolso, capa dura, ou edições nacionais).
-Para cada livro/edição encontrado, forneça os seguintes metadados em português brasileiro estruturados estritamente em um objeto JSON com a chave "books", contendo uma lista de objetos conforme o formato abaixo:
+Caso a consulta seja sobre um "Box Set", "Box de Livros" ou "Coleção" (por exemplo, "Box Harry Potter", "Trilogia O Senhor dos Anéis", "Box Sherlock Holmes"), você deve obrigatoriamente retornar na lista "books" múltiplos objetos correspondentes:
+1. Primeiro, um objeto que represente o "Box" em si (o pacote completo/bundle), com o título indicando que é o Box (ex: "Box Harry Potter - Coleção Completa") e o campo "boxSetVolume" definido como "Completo" ou "Box".
+2. Depois, inclua cada um dos livros individuais pertencentes a este Box Set (os volumes que o compõem), ordenados por volume.
+3. Para todos esses registros (tanto o Box quanto os livros individuais), marque "inBoxSet": true e preencha "boxSetName" com EXATAMENTE o mesmo nome (ex: "Box Harry Potter") para que o sistema possa agrupá-los e linká-los perfeitamente.
+
+Se a consulta for sobre um livro individual normal, pesquise e encontre até 3 edições/versões diferentes ou livros correspondentes aproximados para esta consulta (por exemplo, diferentes editoras, edições de bolso, capa dura, ou edições nacionais).
+
+Para cada livro/edição/volume encontrado, forneça os seguintes metadados em português brasileiro estruturados estritamente em um objeto JSON com a chave "books", contendo uma lista de objetos conforme o formato abaixo:
 
 {
   "books": [
@@ -313,7 +391,7 @@ Para cada livro/edição encontrado, forneça os seguintes metadados em portugu�
       "edition": "Edição ou tipo da edição (ex: '1ª Edição', 'Edição de Luxo')",
       "inBoxSet": false,
       "boxSetName": "Nome da coleção ou box se aplicável (ex: 'Box Sherlock Holmes', 'Box Coleção Agatha Christie')",
-      "boxSetVolume": "Volume ou número do box se aplicável (ex: 'Vol. 1', 'Box 2')"
+      "boxSetVolume": "Volume ou número do box se aplicável (ex: 'Vol. 1', 'Vol. 2', 'Box')"
     }
   ]
 }
@@ -323,6 +401,7 @@ Atenção especial:
 - "inBoxSet" deve ser boolean (true se pertencer a uma coleção ou box set como Sherlock Holmes, Agatha Christie, O Senhor dos Anéis).
 - Todos os demais campos devem ser strings. Se algum campo for desconhecido, retorne uma string vazia "".
 - Retorne apenas o JSON puro, sem textos adicionais, explicações ou blocos de código markdown.`;
+    }
 
     const contents = [
       {
