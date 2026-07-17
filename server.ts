@@ -438,19 +438,28 @@ app.post("/api/recommendations", validatePin, async (req, res) => {
       return res.status(400).json({ error: "O título do livro é necessário para gerar sugestões." });
     }
 
-    const promptText = `Você é um curador literário inteligente e carinhoso para a "Estante da Lu".
+    const promptText = `Você é um curador literário inteligente, extremamente rigoroso e carinhoso para a "Estante da Lu".
 O usuário está visualizando os detalhes do livro "${title.trim()}" escrito por "${(author || '').trim() || 'Autor Desconhecido'}" (gênero: "${(genre || '').trim() || 'Geral'}").
 
 Com base nessas informações, sugira exatamente 2 livros excelentes como sugestões de próximas leituras para a Lu, ou novidades/futuros lançamentos relacionados que combinem com este estilo.
+
+REGRAS CRÍTICAS DE VERACIDADE (PREVENÇÃO ABSOLUTA DE ALUCINAÇÕES):
+1. Você está TERMINANTEMENTE PROIBIDO de inventar, misturar ou criar livros, autores ou títulos fictícios que não existem na vida real.
+2. Certifique-se de sugerir APENAS livros REAIS que foram de fato publicados ou que possuem anúncio/lançamento oficial confirmado por editoras reais e conhecidas no mercado editorial.
+3. Não misture autores reais com obras fictícias (por exemplo, NUNCA associe obras inexistentes como "A Menina que Fez o Mundo Desabar" a autores reais como Raphael Montes, C.S. Lewis ou qualquer outro). Se a obra não existe física e catalogada de verdade no mercado, ela NÃO pode ser recomendada de forma alguma.
+4. Verifique mentalmente se você saberia citar a sinopse real, editora real e ano correto de publicação desse livro. Se tiver qualquer dúvida sobre a existência física real da obra, escolha outro livro consagrado e indubitavelmente real.
+
 Você deve retornar obrigatoriamente um objeto JSON contendo exatamente 2 sugestões estruturadas sob a chave "recommendations" exatamente conforme o formato abaixo:
 
 {
   "recommendations": [
     {
-      "title": "Título do livro sugerido",
-      "author": "Nome do autor",
+      "title": "Título real do livro sugerido",
+      "author": "Nome real do autor",
       "reason": "Por que você vai amar: justificativa carinhosa de por que ela vai amar, relacionando com o estilo de ${title.trim()}",
-      "tags": ["Tag1", "Tag2"]
+      "tags": ["Tag1", "Tag2"],
+      "releaseYear": "Ano de publicação ou previsão de lançamento (ex: 2024, ou 2026/2027 para futuros reais)",
+      "releaseStatus": "Status do lançamento em português (ex: 'Já lançado', 'Lançamento futuro / Em breve', 'Clássico publicado')"
     }
   ]
 }

@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Estante da Lu 🐱 - Biblioteca Pessoal</title>
+    
+    <!-- PWA & Icon Tags -->
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Estante da Lu" />
+    <link rel="manifest" href="/manifest.json" />
+
     <!-- Update: Otimizações nas conquistas acumuladas e painel de metas da estante -->
     
     <!-- Google Fonts -->
@@ -228,7 +238,7 @@
           class="flex-1 md:flex-none flex items-center justify-center md:justify-start gap-3 px-3 py-2.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold transition-all text-slate-500 hover:bg-white/50 hover:text-slate-700 whitespace-nowrap"
         >
           <i data-lucide="book-open" class="w-4 h-4"></i>
-          <span>Quero Ler</span>
+          <span>Aguardando Leitura</span>
         </button>
         <button
           id="nav-btn-Lendo"
@@ -989,7 +999,7 @@
                 onclick="setFormStatus('Quero Ler')"
                 class="py-2 rounded-xl text-xs font-semibold border bg-[#FF9F0A]/10 text-amber-800 border-amber-300 ring-2 ring-amber-500/20"
               >
-                Quero Ler
+                Aguardando Leitura
               </button>
               <button
                 type="button"
@@ -2108,7 +2118,7 @@
               
               const statusIcon = book.status === "Lido" ? "check-circle" : book.status === "Lendo" ? "book-open" : "clock";
               const statusColor = book.status === "Lido" ? "text-emerald-500 bg-emerald-50 border-emerald-100" : book.status === "Lendo" ? "text-violet-500 bg-violet-50 border-violet-100 animate-pulse" : "text-amber-500 bg-amber-50 border-amber-100";
-              const statusLabel = book.status || "Quero Ler";
+              const statusLabel = book.status === "Quero Ler" ? "Aguardando Leitura" : (book.status || "Aguardando Leitura");
               
               let coverHTML = "";
               if (book.coverImage && (book.coverImage.startsWith("http") || book.coverImage.startsWith("data:image"))) {
@@ -2202,7 +2212,7 @@
               `;
             } else {
               statusIconHTML = `
-                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Quero Ler">
+                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Aguardando Leitura">
                   <i data-lucide="book-open" class="w-4 h-4"></i>
                 </div>
               `;
@@ -2313,7 +2323,7 @@
               `;
             } else {
               statusBadge = `
-                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Quero Ler">
+                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex items-center justify-center shrink-0 shadow-sm" title="Aguardando Leitura">
                   <i data-lucide="book-open" class="w-4 h-4"></i>
                 </div>
               `;
@@ -2816,7 +2826,7 @@
                         <i data-lucide="book-open" class="w-4 h-4"></i>
                       </div>
                       <div>
-                        <p class="text-xs font-bold text-slate-700">Quero Ler</p>
+                        <p class="text-xs font-bold text-slate-700">Aguardando Leitura</p>
                         <p class="text-[9px] text-slate-400 font-semibold">${pctQueroLer}% do total</p>
                       </div>
                     </div>
@@ -3048,7 +3058,7 @@
         const isbnLabel = document.getElementById("detail-isbn-label");
         
         if (statusBadge) {
-          statusBadge.innerText = book.status || "Quero Ler";
+          statusBadge.innerText = book.status === "Quero Ler" ? "Aguardando Leitura" : (book.status || "Aguardando Leitura");
           // reset color classes
           statusBadge.className = "px-2.5 py-1 text-xs font-bold rounded-lg shadow-sm";
           if (book.status === "Lido") {
@@ -3395,28 +3405,84 @@
           return;
         }
         
-        containerEl.innerHTML = recommendations.map((rec) => {
+        containerEl.innerHTML = recommendations.map((rec, index) => {
           const tagsHTML = (rec.tags || [])
             .map(t => `<span class="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded">${t}</span>`)
             .join("");
             
+          const cleanTitle = (rec.title || "Sem Título").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+          const cleanAuthor = (rec.author || "Autor Desconhecido").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+          const btnElId = `wish-rec-${index}`;
+
+          // Check if this book is already in the wishlist
+          const alreadyInWishlist = state.wishlist.some(item => 
+            (item.title || "").toLowerCase().trim() === (rec.title || "").toLowerCase().trim()
+          );
+
+          const buttonHTML = alreadyInWishlist 
+            ? `
+              <button 
+                disabled
+                class="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg cursor-default shrink-0"
+              >
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>No radar!</span>
+              </button>
+            `
+            : `
+              <button 
+                id="${btnElId}"
+                onclick="window.quickAddWishlist('${cleanTitle}', '${cleanAuthor}', '${btnElId}')"
+                class="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition-all active:scale-95 cursor-pointer shrink-0"
+                title="Adicionar à Lista de Desejos"
+              >
+                <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
+                <span>Quero Ler</span>
+              </button>
+            `;
+
+          // Release metadata section
+          const releaseYearText = rec.releaseYear || "N/A";
+          const releaseStatusText = rec.releaseStatus || "Já lançado";
+          
+          let statusBadgeClass = "bg-slate-100 text-slate-600 border border-slate-200/50";
+          if (releaseStatusText.toLowerCase().includes("futuro") || releaseStatusText.toLowerCase().includes("breve") || releaseStatusText.toLowerCase().includes("previsto")) {
+            statusBadgeClass = "bg-amber-50 text-amber-700 border border-amber-200/50 animate-pulse";
+          } else if (releaseStatusText.toLowerCase().includes("lançado") || releaseStatusText.toLowerCase().includes("publicado")) {
+            statusBadgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-200/50";
+          }
+
           return `
             <div class="bg-slate-50/75 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between hover:shadow-sm transition-all duration-200">
               <div class="space-y-1.5">
                 <div class="flex items-start justify-between gap-2">
-                  <h4 class="font-sans font-bold text-slate-800 text-sm line-clamp-1">${rec.title}</h4>
+                  <div class="min-w-0">
+                    <h4 class="font-sans font-bold text-slate-800 text-sm line-clamp-1" title="${rec.title}">${rec.title}</h4>
+                    <p class="text-xs text-slate-500 font-medium italic">por ${rec.author}</p>
+                  </div>
                   <span class="shrink-0 text-[10px] bg-indigo-50 text-[#7986cb] px-2 py-0.5 rounded font-bold">IA</span>
                 </div>
-                <p class="text-xs text-slate-500 font-medium italic">por ${rec.author}</p>
+                
+                <!-- Release Info -->
+                <div class="flex flex-wrap items-center gap-1.5 text-[9px] font-bold">
+                  <span class="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">${releaseYearText}</span>
+                  <span class="${statusBadgeClass} px-1.5 py-0.5 rounded">${releaseStatusText}</span>
+                </div>
+
                 <p class="text-xs text-slate-600 leading-relaxed text-justify line-clamp-3" title="${rec.reason}">${rec.reason}</p>
               </div>
               
-              <div class="flex flex-wrap gap-1 mt-3">
-                ${tagsHTML}
+              <div class="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-100">
+                <div class="flex flex-wrap gap-1 min-w-0">
+                  ${tagsHTML}
+                </div>
+                ${buttonHTML}
               </div>
             </div>
           `;
         }).join("");
+
+        if (window.lucide) window.lucide.createIcons();
       }
 
       window.retryRecommendations = function() {
@@ -4018,6 +4084,45 @@
         
         // Automatically trigger cover fetch!
         window.triggerCoverFetch();
+      };
+
+      window.quickAddWishlist = async function(title, author, btnElId) {
+        const btn = document.getElementById(btnElId);
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Salvando...</span>`;
+          if (window.lucide) window.lucide.createIcons();
+        }
+        
+        const cleanData = {
+          title: title,
+          author: author || "Autor Desconhecido"
+        };
+        
+        try {
+          await addDoc(collection(db, "wishlist"), {
+            ...cleanData,
+            createdAt: serverTimestamp()
+          });
+          
+          if (btn) {
+            btn.className = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg cursor-default";
+            btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>No radar!</span>`;
+            if (window.lucide) window.lucide.createIcons();
+          }
+        } catch (err) {
+          console.warn("Firestore save failed for quick wishlist add, saving locally:", err);
+          const newLocal = { ...cleanData, id: `local_${Date.now()}` };
+          state.wishlist = [newLocal, ...state.wishlist];
+          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          
+          if (btn) {
+            btn.className = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg cursor-default";
+            btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>No radar!</span>`;
+            if (window.lucide) window.lucide.createIcons();
+          }
+          renderApp();
+        }
       };
 
       // 9. Camera & Artificial Intelligence Scanner Module
