@@ -280,7 +280,7 @@ Atenção especial para os campos:
   }
 });
 
-// API to prefill book details by ISBN or Title using Gemini 2.5 Flash (gemini-3.5-flash)
+// API to prefill book details by ISBN or Title with multi-source catalog lookup & anti-hallucination controls
 app.post("/api/book-info", validatePin, async (req, res) => {
   try {
     const { query: searchQuery } = req.body;
@@ -289,118 +289,220 @@ app.post("/api/book-info", validatePin, async (req, res) => {
       return res.status(400).json({ error: "Nenhum ISBN ou título do livro fornecido." });
     }
 
-    let brasilApiData: any = null;
-    const cleanedQuery = searchQuery.trim().replace(/[^0-9]/g, "");
-    const isIsbn = (cleanedQuery.length === 10 || cleanedQuery.length === 13) && /^\d+$/.test(cleanedQuery);
+    const cleanedQuery = searchQuery.trim().replace(/[^0-9Xx]/g, "");
+    const isIsbn = (cleanedQuery.length === 10 || cleanedQuery.length === 13) && /^[0-9]+[0-9Xx]?$/.test(cleanedQuery);
+
+    let officialData = {
+      isIsbn,
+      isbn: isIsbn ? cleanedQuery : "",
+      title: "",
+      author: "",
+      publisher: "",
+      year: "",
+      pages: 0,
+      synopsis: "",
+      foundInApi: false,
+      sources: [] as string[],
+      searchResults: [] as any[]
+    };
 
     if (isIsbn) {
+      console.log(`Buscando ISBN ${cleanedQuery} em múltiplas bases oficiais...`);
+
+      // 1. Consultar BrasilAPI
       try {
-        console.log(`Buscando ISBN ${cleanedQuery} na BrasilAPI...`);
         const bRes = await fetch(`https://brasilapi.com.br/api/isbn/v1/${cleanedQuery}`);
         if (bRes.ok) {
-          brasilApiData = await bRes.json();
-          console.log("Sucesso ao obter dados do livro da BrasilAPI:", brasilApiData);
-        } else {
-          console.log(`BrasilAPI retornou status ${bRes.status} para o ISBN ${cleanedQuery}`);
+          const d = await bRes.json();
+          if (d.title) officialData.title = d.title.trim();
+          if (d.authors) {
+            officialData.author = Array.isArray(d.authors) ? d.authors.join(", ").trim() : String(d.authors).trim();
+          }
+          if (d.publisher) officialData.publisher = String(d.publisher).trim();
+          if (d.year) officialData.year = String(d.year).trim();
+          if (d.page_count) officialData.pages = Number(d.page_count) || 0;
+          if (d.synopsis) officialData.synopsis = String(d.synopsis).trim();
+          officialData.foundInApi = true;
+          officialData.sources.push("BrasilAPI");
         }
       } catch (err) {
         console.error("Falha ao consultar BrasilAPI:", err);
       }
+
+      // 2. Consultar OpenLibrary (complementar ou buscar dados se BrasilAPI não encontrou)
+      try {
+        const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`);
+        if (olRes.ok) {
+          const d = await olRes.json();
+          const item = d[`ISBN:${cleanedQuery}`];
+          if (item) {
+            if (!officialData.title && item.title) officialData.title = String(item.title).trim();
+            if (!officialData.author && item.authors) {
+              officialData.author = item.authors.map((a: any) => a.name).join(", ").trim();
+            }
+            if (!officialData.publisher && item.publishers) {
+              officialData.publisher = item.publishers.map((p: any) => p.name).join(", ").trim();
+            }
+            if (!officialData.year && item.publish_date) officialData.year = String(item.publish_date).trim();
+            if (officialData.pages === 0 && item.number_of_pages) officialData.pages = Number(item.number_of_pages) || 0;
+            if (!officialData.synopsis && typeof item.notes === "string") officialData.synopsis = item.notes.trim();
+            officialData.foundInApi = true;
+            officialData.sources.push("OpenLibrary");
+          }
+        }
+      } catch (err) {
+        console.error("Falha ao consultar OpenLibrary:", err);
+      }
+
+      // 3. Consultar OpenLibrary Search API para o número do ISBN se ainda faltar autor ou título
+      if (!officialData.title || !officialData.author) {
+        try {
+          const olsRes = await fetch(`https://openlibrary.org/search.json?q=${cleanedQuery}&limit=1`);
+          if (olsRes.ok) {
+            const d = await olsRes.json();
+            if (d.docs && d.docs.length > 0) {
+              const doc = d.docs[0];
+              if (!officialData.title && doc.title) officialData.title = String(doc.title).trim();
+              if (!officialData.author && doc.author_name) officialData.author = doc.author_name.join(", ").trim();
+              if (!officialData.year && doc.first_publish_year) officialData.year = String(doc.first_publish_year);
+              officialData.foundInApi = true;
+              officialData.sources.push("OpenLibrarySearch");
+            }
+          }
+        } catch (err) {
+          console.error("Falha ao consultar OpenLibrary Search:", err);
+        }
+      }
+    } else {
+      // Busca por título/texto
+      try {
+        const olsRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery.trim())}&limit=3`);
+        if (olsRes.ok) {
+          const d = await olsRes.json();
+          if (d.docs && d.docs.length > 0) {
+            officialData.foundInApi = true;
+            officialData.searchResults = d.docs.map((doc: any) => ({
+              title: doc.title,
+              author: doc.author_name ? doc.author_name.join(", ") : "Desconhecido",
+              year: doc.first_publish_year ? String(doc.first_publish_year) : ""
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Falha ao buscar títulos na OpenLibrary:", err);
+      }
     }
 
     let promptText = "";
-    if (brasilApiData) {
-      const bAuthors = Array.isArray(brasilApiData.authors) ? brasilApiData.authors.join(", ") : (brasilApiData.authors || "Não informado");
-      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
-O usuário buscou o ISBN "${cleanedQuery}" na base nacional de livros do Brasil (BrasilAPI), que retornou com sucesso os seguintes metadados oficiais:
-- Título Oficial: "${brasilApiData.title || ''}"
-- Autor(es): "${bAuthors}"
-- Editora Oficial: "${brasilApiData.publisher || ''}"
-- Ano de Lançamento: "${brasilApiData.year || ''}"
-- Páginas: ${brasilApiData.page_count || 0}
-- Sinopse (se houver): "${brasilApiData.synopsis || ''}"
 
-Seu trabalho é gerar uma resposta no formato JSON estruturado usando os metadados reais acima. Para os campos abaixo, use sua inteligência artificial para preencher/complementar:
-1. "synopsis": Se a sinopse fornecida acima for vazia ou curta demais, elabore uma sinopse cativante, calorosa, interessante e envolvendo o livro em português brasileiro (sem spoilers). Se a original for boa, preserve-a ou enriqueça-a.
-2. "genre": Estime o gênero literário correto baseado na obra (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.).
-3. "inBoxSet", "boxSetName", "boxSetVolume": Verifique com muita atenção se este título/ISBN de fato pertence a um Box Set, Coleção ou Trilogia de livros famosa (por exemplo, "Box Sherlock Holmes", "Box Trilogia Espacial", "Box Harry Potter").
+    if (isIsbn && officialData.foundInApi && (officialData.title || officialData.author)) {
+      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão da "Estante da Lu".
+O usuário buscou o ISBN "${cleanedQuery}". A consulta às bases oficiais de ISBN (${officialData.sources.join(", ")}) retornou os seguintes dados REAIS e VERIFICADOS da obra:
+- Título Oficial: "${officialData.title}"
+- Autor(es) Oficiais: "${officialData.author || 'Autor não informado no catálogo'}"
+- Editora Oficial: "${officialData.publisher}"
+- Ano de Lançamento: "${officialData.year}"
+- Número de Páginas: ${officialData.pages}
+- Sinopse registrada: "${officialData.synopsis}"
 
-Caso o título ou os metadados indiquem que esta consulta/ISBN se refere a um Box Set completo ou coleção contendo múltiplos volumes/livros (por exemplo, contendo termos como "Box", "Coleção", "Trilogia", "Kit", "Volumes"):
-Você deve obrigatoriamente retornar na lista "books" múltiplos objetos correspondentes:
-- Primeiro, um objeto que represente o "Box" em si (o pacote completo/bundle), com o título indicando que é o Box (ex: "Box Harry Potter - Coleção Completa"), "boxSetVolume" como "Completo" ou "Box" e "inBoxSet": true.
-- Depois, inclua cada um dos livros individuais pertencentes a este Box Set (os volumes que o compõem), ordenados por volume.
-- Para todos esses registros (tanto o Box quanto os livros individuais), marque "inBoxSet": true e preencha "boxSetName" com EXATAMENTE o mesmo nome (ex: "Box Harry Potter") para que o sistema possa agrupá-los e linká-los perfeitamente.
+REGRAS OBRIGATÓRIAS E IMUTÁVEIS (PREVENÇÃO ABSOLUTA DE ALUCINAÇÕES):
+1. O Título Oficial ("${officialData.title}") e o Autor ("${officialData.author || 'Autor da obra'}") são DADOS REAIS e IMUTÁVEIS. Você está STRICTLY FORBIDDEN de alterar o título ou inventar outro autor/livro.
+2. Se a sinopse registrada for curta ou vazia, elabore uma sinopse cativante e envolvente em português brasileiro exclusivamente sobre o livro REAL "${officialData.title}".
+3. Estime o gênero literário correto para a obra "${officialData.title}".
+4. Se o título ou ISBN indicar um Box Set / Coleção (ex: "Box Harry Potter"), inclua os livros componentes mantendo a fidelidade.
 
-Se for um livro individual normal, forneça de 1 a 3 edições/versões correspondentes, com "inBoxSet": false (ou preenchendo as chaves correspondentes se ele pertencer a alguma coleção famosa).
-
-Forneça a resposta estruturada estritamente em um objeto JSON com a chave "books", contendo uma lista de objetos conforme o formato abaixo:
-
+Retorne obrigatoriamente um objeto JSON com a chave "books":
 {
   "books": [
     {
-      "title": "${(brasilApiData.title || '').replace(/"/g, '\\"')}",
-      "author": "${bAuthors.replace(/"/g, '\\"')}",
+      "title": "${(officialData.title || '').replace(/"/g, '\\"')}",
+      "author": "${(officialData.author || '').replace(/"/g, '\\"')}",
       "genre": "Gênero estimado",
-      "pages": ${brasilApiData.page_count || 0},
-      "synopsis": "Sua sinopse bem elaborada aqui",
+      "pages": ${officialData.pages || 200},
+      "synopsis": "Sua sinopse bem elaborada especificamente sobre este livro real",
       "status": "Quero Ler",
       "isbn": "${cleanedQuery}",
-      "editionInfo": "${(brasilApiData.publisher || '').replace(/"/g, '\\"')}${brasilApiData.year ? `, ${brasilApiData.year}` : ''}",
-      "publisher": "${(brasilApiData.publisher || '').replace(/"/g, '\\"')}",
-      "publishYear": "${brasilApiData.year ? String(brasilApiData.year) : ''}",
+      "editionInfo": "${(officialData.publisher || '').replace(/"/g, '\\"')}${officialData.year ? `, ${officialData.year}` : ''}",
+      "publisher": "${(officialData.publisher || '').replace(/"/g, '\\"')}",
+      "publishYear": "${officialData.year ? String(officialData.year) : ''}",
       "edition": "Edição Brasileira",
       "inBoxSet": false,
       "boxSetName": "",
       "boxSetVolume": ""
     }
   ]
-}
+}`;
+    } else if (isIsbn && !officialData.foundInApi) {
+      promptText = `Você é um bibliotecário de alta precisão da "Estante da Lu".
+O usuário buscou o código numérico de ISBN "${cleanedQuery}".
+ATENÇÃO: Nenhuma base oficial de livros (BrasilAPI, OpenLibrary, Google Books) possui registro catalogado para o ISBN ${cleanedQuery}.
 
-Atenção especial:
-- "pages" deve ser um número inteiro.
-- "inBoxSet" deve ser boolean.
-- Retorne apenas o JSON puro, sem textos explicativos adicionais ou blocos de código markdown.`;
+REGRAS CRÍTICAS DE SEGURANÇA E VERACIDADE:
+1. Você está TERMINANTEMENTE PROIBIDO de inventar ou adivinhar um livro aleatório a partir de um código numérico de ISBN não cadastrado.
+2. Apenas se você tiver 100% de CERTEZA ABSOLUTA na sua base interna sobre qual obra exatamente corresponde a este ISBN ${cleanedQuery}, retorne os dados reais.
+3. Se você NÃO tiver 100% de certeza do livro correspondente a este ISBN, você DEVE retornar o título como "[ISBN ${cleanedQuery} - Não localizado]" com o autor "Não encontrado" e instruir na sinopse a buscar pelo Título do livro.
+
+Retorne obrigatoriamente um objeto JSON no formato:
+{
+  "books": [
+    {
+      "title": "[ISBN ${cleanedQuery} - Não localizado no catálogo]",
+      "author": "Não localizado",
+      "genre": "Geral",
+      "pages": 0,
+      "synopsis": "Este número de ISBN não foi localizado nos catálogos oficiais de livros. Por favor, tente pesquisar pelo Título do livro ou pelo nome do Autor no campo de busca.",
+      "status": "Quero Ler",
+      "isbn": "${cleanedQuery}",
+      "editionInfo": "",
+      "publisher": "",
+      "publishYear": "",
+      "edition": "",
+      "inBoxSet": false,
+      "boxSetName": "",
+      "boxSetVolume": ""
+    }
+  ]
+}`;
     } else {
-      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão.
-O usuário inseriu a seguinte consulta para encontrar um livro (pode ser um número de ISBN de 10 ou 13 dígitos, ou o título do livro com ou sem autor):
+      let catalogContext = "";
+      if (officialData.searchResults && officialData.searchResults.length > 0) {
+        const list = officialData.searchResults.map((r: any) => `- "${r.title}" por ${r.author} (${r.year || 'ano N/I'})`).join("\n");
+        catalogContext = `Resultados reais encontrados nos catálogos mundiais de livros:\n${list}\nUse estes livros REAIS como referência prioritária.`;
+      } else {
+        catalogContext = `A busca no catálogo mundial de livros retornou 0 registros para a consulta "${searchQuery.trim()}".`;
+      }
 
-Consulta: "${searchQuery.trim()}"
+      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão para a "Estante da Lu".
+O usuário inseriu a seguinte consulta para encontrar um livro ou coleção: "${searchQuery.trim()}".
 
-Caso a consulta seja sobre um "Box Set", "Box de Livros" ou "Coleção" (por exemplo, "Box Harry Potter", "Trilogia O Senhor dos Anéis", "Box Sherlock Holmes"), você deve obrigatoriamente retornar na lista "books" múltiplos objetos correspondentes:
-1. Primeiro, um objeto que represente o "Box" em si (o pacote completo/bundle), com o título indicando que é o Box (ex: "Box Harry Potter - Coleção Completa") e o campo "boxSetVolume" definido como "Completo" ou "Box".
-2. Depois, inclua cada um dos livros individuais pertencentes a este Box Set (os volumes que o compõem), ordenados por volume.
-3. Para todos esses registros (tanto o Box quanto os livros individuais), marque "inBoxSet": true e preencha "boxSetName" com EXATAMENTE o mesmo nome (ex: "Box Harry Potter") para que o sistema possa agrupá-los e linká-los perfeitamente.
+${catalogContext}
 
-Se a consulta for sobre um livro individual normal, pesquise e encontre até 3 edições/versões diferentes ou livros correspondentes aproximados para esta consulta (por exemplo, diferentes editoras, edições de bolso, capa dura, ou edições nacionais).
+REGRAS CRÍTICAS DE VERACIDADE (PREVENÇÃO TOTAL DE ALUCINAÇÕES):
+1. Você está TERMINANTEMENTE PROIBIDO de inventar, misturar ou criar livros ou autores fictícios que não existem no mundo real.
+2. Se a consulta for sobre uma obra fictícia ou inexistente, informe com transparência que ela não existe ou retorne uma lista vazia.
+3. Se for um livro REAL ou Box Set REAL, retorne de 1 a 3 edições/livros com dados 100% reais e precisos.
 
-Para cada livro/edição/volume encontrado, forneça os seguintes metadados em português brasileiro estruturados estritamente em um objeto JSON com a chave "books", contendo uma lista de objetos conforme o formato abaixo:
-
+Retorne obrigatoriamente um objeto JSON com a chave "books":
 {
   "books": [
     {
       "title": "Título oficial e correto do livro em português brasileiro",
-      "author": "Nome do autor ou autores principais",
-      "genre": "Gênero literário (ex: Romance, Suspense, Fantasia, Ficção Científica, Desenvolvimento Pessoal, Poesia, Biografia, Clássico, etc.)",
+      "author": "Nome do autor principal",
+      "genre": "Gênero literário",
       "pages": 250,
-      "synopsis": "Uma sinopse breve, interessante, calorosa e envolvendo o livro em português brasileiro (sem dar spoilers do final)",
+      "synopsis": "Uma sinopse cativante e real sem spoilers",
       "status": "Quero Ler",
-      "isbn": "9781234567890",
-      "editionInfo": "Rótulo curto identificando esta edição (ex: 'Editora Intrínseca, 2012', 'Capa Dura - HarperCollins, 2020')",
+      "isbn": "",
+      "editionInfo": "Rótulo curto da edição (ex: 'Editora Intrínseca')",
       "publisher": "Nome da editora",
-      "publishYear": "Ano de lançamento (formato string, ex: '2012')",
-      "edition": "Edição ou tipo da edição (ex: '1ª Edição', 'Edição de Luxo')",
+      "publishYear": "Ano de publicação",
+      "edition": "Edição",
       "inBoxSet": false,
-      "boxSetName": "Nome da coleção ou box se aplicável (ex: 'Box Sherlock Holmes', 'Box Coleção Agatha Christie')",
-      "boxSetVolume": "Volume ou número do box se aplicável (ex: 'Vol. 1', 'Vol. 2', 'Box')"
+      "boxSetName": "",
+      "boxSetVolume": ""
     }
   ]
-}
-
-Atenção especial:
-- "pages" deve ser um número inteiro.
-- "inBoxSet" deve ser boolean (true se pertencer a uma coleção ou box set como Sherlock Holmes, Agatha Christie, O Senhor dos Anéis).
-- Todos os demais campos devem ser strings. Se algum campo for desconhecido, retorne uma string vazia "".
-- Retorne apenas o JSON puro, sem textos adicionais, explicações ou blocos de código markdown.`;
+}`;
     }
 
     const contents = [
