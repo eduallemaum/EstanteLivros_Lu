@@ -355,27 +355,27 @@ app.post("/api/book-info", validatePin, async (req, res) => {
         console.error("Falha ao consultar BrasilAPI:", err);
       }
 
-      // 2. Apenas se a BrasilAPI NÃO encontrou, consultar OpenLibrary como fallback
-      if (!officialData.foundInApi) {
-        console.log(`BrasilAPI não encontrou o ISBN. Buscando fallback no OpenLibrary...`);
+      // 2. Consultar OpenLibrary para enriquecer dados faltantes (autor, editora, ano, páginas, sinopse)
+      if (!officialData.author || !officialData.publisher || !officialData.synopsis) {
+        console.log(`Buscando dados complementares no OpenLibrary para o ISBN ${cleanedQuery}...`);
         try {
           const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`);
           if (olRes.ok) {
             const d = await olRes.json();
             const item = d[`ISBN:${cleanedQuery}`];
             if (item) {
-              if (item.title) officialData.title = String(item.title).trim();
-              if (item.authors) {
+              if (!officialData.title && item.title) officialData.title = String(item.title).trim();
+              if (!officialData.author && item.authors) {
                 officialData.author = item.authors.map((a: any) => a.name).join(", ").trim();
               }
-              if (item.publishers) {
+              if (!officialData.publisher && item.publishers) {
                 officialData.publisher = item.publishers.map((p: any) => p.name).join(", ").trim();
               }
-              if (item.publish_date) officialData.year = String(item.publish_date).trim();
-              if (item.number_of_pages) officialData.pages = Number(item.number_of_pages) || 0;
-              if (typeof item.notes === "string") officialData.synopsis = item.notes.trim();
+              if (!officialData.year && item.publish_date) officialData.year = String(item.publish_date).trim();
+              if (!officialData.pages && item.number_of_pages) officialData.pages = Number(item.number_of_pages) || 0;
+              if (!officialData.synopsis && typeof item.notes === "string") officialData.synopsis = item.notes.trim();
               officialData.foundInApi = true;
-              officialData.sources.push("OpenLibrary");
+              if (!officialData.sources.includes("OpenLibrary")) officialData.sources.push("OpenLibrary");
             }
           }
         } catch (err) {
@@ -384,18 +384,18 @@ app.post("/api/book-info", validatePin, async (req, res) => {
       }
 
       // 3. Fallback final para OpenLibrary Search se ainda faltar autor ou título
-      if (!officialData.foundInApi) {
+      if (!officialData.author || !officialData.title) {
         try {
           const olsRes = await fetch(`https://openlibrary.org/search.json?q=${cleanedQuery}&limit=1`);
           if (olsRes.ok) {
             const d = await olsRes.json();
             if (d.docs && d.docs.length > 0) {
               const doc = d.docs[0];
-              if (doc.title) officialData.title = String(doc.title).trim();
-              if (doc.author_name) officialData.author = doc.author_name.join(", ").trim();
-              if (doc.first_publish_year) officialData.year = String(doc.first_publish_year);
+              if (!officialData.title && doc.title) officialData.title = String(doc.title).trim();
+              if (!officialData.author && doc.author_name) officialData.author = doc.author_name.join(", ").trim();
+              if (!officialData.year && doc.first_publish_year) officialData.year = String(doc.first_publish_year);
               officialData.foundInApi = true;
-              officialData.sources.push("OpenLibrarySearch");
+              if (!officialData.sources.includes("OpenLibrarySearch")) officialData.sources.push("OpenLibrarySearch");
             }
           }
         } catch (err) {
@@ -462,54 +462,36 @@ Retorne obrigatoriamente um objeto JSON com a chave "books":
   ]
 }`;
     } else if (isIsbn && !officialData.foundInApi) {
-      promptText = `Você é um bibliotecário de alta precisão da "Estante da Lu".
-O usuário buscou o código numérico de ISBN "${cleanedQuery}".
-ATENÇÃO: Nenhuma base oficial de livros (BrasilAPI, OpenLibrary, Google Books) possui registro catalogado para o ISBN ${cleanedQuery}.
-
-REGRAS CRÍTICAS DE SEGURANÇA E VERACIDADE:
-1. Você está TERMINANTEMENTE PROIBIDO de inventar ou adivinhar um livro aleatório a partir de um código numérico de ISBN não cadastrado.
-2. Apenas se você tiver 100% de CERTEZA ABSOLUTA na sua base interna sobre qual obra exatamente corresponde a este ISBN ${cleanedQuery}, retorne os dados reais.
-3. Se você NÃO tiver 100% de certeza do livro correspondente a este ISBN, você DEVE retornar o título como "[ISBN ${cleanedQuery} - Não localizado]" com o autor "Não encontrado" e instruir na sinopse a buscar pelo Título do livro.
-
-Retorne obrigatoriamente um objeto JSON no formato:
-{
-  "books": [
-    {
-      "title": "[ISBN ${cleanedQuery} - Não localizado no catálogo]",
-      "author": "Não localizado",
-      "genre": "Geral",
-      "pages": 0,
-      "synopsis": "Este número de ISBN não foi localizado nos catálogos oficiais de livros. Por favor, tente pesquisar pelo Título do livro ou pelo nome do Autor no campo de busca.",
-      "status": "Quero Ler",
-      "isbn": "${cleanedQuery}",
-      "editionInfo": "",
-      "publisher": "",
-      "publishYear": "",
-      "edition": "",
-      "inBoxSet": false,
-      "boxSetName": "",
-      "boxSetVolume": ""
-    }
-  ]
-}`;
+      console.log(`ISBN ${cleanedQuery} não encontrado nos catálogos (BrasilAPI/OpenLibrary). Retornando resposta de não localizado direto sem chamar IA para evitar alucinações.`);
+      return res.json({
+        books: [
+          {
+            title: `[ISBN ${cleanedQuery} - Não localizado no catálogo]`,
+            author: "Não localizado",
+            genre: "Geral",
+            pages: 0,
+            synopsis: `Este código de ISBN (${cleanedQuery}) não foi encontrado nos catálogos oficiais (BrasilAPI/OpenLibrary). Por favor, tente pesquisar pelo Título do livro (ex: 'O Castelo de Vidro') no campo de busca para encontrá-lo.`,
+            status: "Quero Ler",
+            isbn: cleanedQuery,
+            editionInfo: "",
+            publisher: "",
+            publishYear: "",
+            edition: "",
+            inBoxSet: false,
+            boxSetName: "",
+            boxSetVolume: ""
+          }
+        ]
+      });
     } else {
-      let catalogContext = "";
-      if (officialData.searchResults && officialData.searchResults.length > 0) {
-        const list = officialData.searchResults.map((r: any) => `- "${r.title}" por ${r.author} (${r.year || 'ano N/I'})`).join("\n");
-        catalogContext = `Resultados reais encontrados nos catálogos mundiais de livros:\n${list}\nUse estes livros REAIS como referência prioritária.`;
-      } else {
-        catalogContext = `A busca no catálogo mundial de livros retornou 0 registros para a consulta "${searchQuery.trim()}".`;
-      }
-
       promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão para a "Estante da Lu".
-O usuário inseriu a seguinte consulta para encontrar um livro ou coleção: "${searchQuery.trim()}".
-
-${catalogContext}
+O usuário inseriu a seguinte consulta para encontrar um livro ou coleção (por Título ou Autor): "${searchQuery.trim()}".
 
 REGRAS CRÍTICAS DE VERACIDADE (PREVENÇÃO TOTAL DE ALUCINAÇÕES):
-1. Você está TERMINANTEMENTE PROIBIDO de inventar, misturar ou criar livros ou autores fictícios que não existem no mundo real.
-2. Se a consulta for sobre uma obra fictícia ou inexistente, informe com transparência que ela não existe ou retorne uma lista vazia.
-3. Se for um livro REAL ou Box Set REAL, retorne de 1 a 3 edições/livros com dados 100% reais e precisos.
+1. Identifique com precisão cirúrgica a obra literária real correspondente à busca do usuário em português brasileiro (ex: se buscou "O Castelo de Vidro", identifique a autobiografia/memória real de Jeannette Walls).
+2. Se a busca for sobre um Box Set ou Coleção famosa (ex: "Box Harry Potter", "Trilogia O Senhor dos Anéis"), forneça os livros da coleção com "inBoxSet": true e o nome do box.
+3. Se for um livro individual normal, forneça de 1 a 3 edições/versões reais correspondentes ao livro pesquisado.
+4. Você está TERMINANTEMENTE PROIBIDO de inventar, misturar ou criar livros ou autores fictícios que não existem no mundo real.
 
 Retorne obrigatoriamente um objeto JSON com a chave "books":
 {
