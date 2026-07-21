@@ -425,42 +425,41 @@ app.post("/api/book-info", validatePin, async (req, res) => {
     let promptText = "";
 
     if (isIsbn && officialData.foundInApi && (officialData.title || officialData.author)) {
-      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão da "Estante da Lu".
-O usuário buscou o ISBN "${cleanedQuery}". A consulta às bases oficiais de ISBN (${officialData.sources.join(", ")}) retornou os seguintes dados REAIS e VERIFICADOS da obra:
-- Título Oficial: "${officialData.title}"
-- Autor(es) Oficiais: "${officialData.author || 'Autor não informado no catálogo'}"
-- Editora Oficial: "${officialData.publisher}"
-- Ano de Lançamento: "${officialData.year}"
-- Número de Páginas: ${officialData.pages}
-- Sinopse registrada: "${(officialData.synopsis || '').replace(/"/g, "'").replace(/[\r\n]+/g, " ")}"
+      console.log(`ISBN ${cleanedQuery} encontrado nos catálogos oficiais (${officialData.sources.join(", ")}). Retornando dados reais diretamente sem passar por IA.`);
 
-REGRAS OBRIGATÓRIAS E IMUTÁVEIS (PREVENÇÃO ABSOLUTA DE ALUCINAÇÕES):
-1. O Título Oficial ("${officialData.title}") e o Autor ("${officialData.author || 'Autor da obra'}") são DADOS REAIS e IMUTÁVEIS. Você está STRICTLY FORBIDDEN de alterar o título ou inventar outro autor/livro.
-2. Se a sinopse registrada for curta ou vazia, elabore uma sinopse cativante e envolvente em português brasileiro exclusivamente sobre o livro REAL "${officialData.title}".
-3. Estime o gênero literário correto para a obra "${officialData.title}".
-4. Se o título ou ISBN indicar um Box Set / Coleção (ex: "Box Harry Potter"), inclua os livros componentes mantendo a fidelidade.
+      const bookTitle = officialData.title || `Livro ISBN ${cleanedQuery}`;
+      const bookAuthor = officialData.author || "Autor a confirmar";
+      const bookPublisher = officialData.publisher || "";
+      const bookYear = officialData.year ? String(officialData.year) : "";
 
-Retorne obrigatoriamente um objeto JSON com a chave "books":
-{
-  "books": [
-    {
-      "title": "${(officialData.title || '').replace(/"/g, '\\"')}",
-      "author": "${(officialData.author || '').replace(/"/g, '\\"')}",
-      "genre": "Gênero estimado",
-      "pages": ${officialData.pages || 200},
-      "synopsis": "Sua sinopse bem elaborada especificamente sobre este livro real",
-      "status": "Quero Ler",
-      "isbn": "${cleanedQuery}",
-      "editionInfo": "${(officialData.publisher || '').replace(/"/g, '\\"')}${officialData.year ? `, ${officialData.year}` : ''}",
-      "publisher": "${(officialData.publisher || '').replace(/"/g, '\\"')}",
-      "publishYear": "${officialData.year ? String(officialData.year) : ''}",
-      "edition": "Edição Brasileira",
-      "inBoxSet": false,
-      "boxSetName": "",
-      "boxSetVolume": ""
-    }
-  ]
-}`;
+      let finalSynopsis = officialData.synopsis;
+      if (!finalSynopsis || finalSynopsis.length < 15) {
+        finalSynopsis = `Obra "${bookTitle}"${bookAuthor ? ` de ${bookAuthor}` : ''}, cadastrada no catálogo oficial de livros sob o ISBN ${cleanedQuery}.`;
+      }
+
+      const editionInfoParts = [bookPublisher, bookYear].filter(Boolean);
+      const editionInfo = editionInfoParts.length > 0 ? editionInfoParts.join(", ") : "Edição Registrada";
+
+      return res.json({
+        books: [
+          {
+            title: bookTitle,
+            author: bookAuthor,
+            genre: "Literatura",
+            pages: officialData.pages || 0,
+            synopsis: finalSynopsis,
+            status: "Quero Ler",
+            isbn: cleanedQuery,
+            editionInfo: editionInfo,
+            publisher: bookPublisher,
+            publishYear: bookYear,
+            edition: "Edição Brasileira",
+            inBoxSet: false,
+            boxSetName: "",
+            boxSetVolume: ""
+          }
+        ]
+      });
     } else if (isIsbn && !officialData.foundInApi) {
       console.log(`ISBN ${cleanedQuery} não encontrado nos catálogos (BrasilAPI/OpenLibrary). Retornando resposta de não localizado direto sem chamar IA para evitar alucinações.`);
       return res.json({
@@ -535,26 +534,6 @@ Retorne obrigatoriamente um objeto JSON com a chave "books":
 
     const result = JSON.parse(textOutput.trim());
     const books = result.books || [];
-
-    // Rigor Absoluto: Se a consulta foi por ISBN e encontramos metadados em API oficial (especialmente BrasilAPI),
-    // travamos o título, autor e editora oficiais para impedir que a IA altere qualquer caractere do nome do livro.
-    if (isIsbn && officialData.foundInApi && books.length > 0) {
-      if (officialData.title) {
-        books[0].title = officialData.title;
-      }
-      if (officialData.author) {
-        books[0].author = officialData.author;
-      }
-      if (officialData.publisher) {
-        books[0].publisher = officialData.publisher;
-      }
-      if (officialData.pages > 0) {
-        books[0].pages = officialData.pages;
-      }
-      if (officialData.year && !books[0].publishYear) {
-        books[0].publishYear = officialData.year;
-      }
-    }
 
     return res.json({ books });
   } catch (error: any) {
