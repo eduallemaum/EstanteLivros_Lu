@@ -1879,11 +1879,30 @@
 
         // Apply filters
         let filteredBooks = state.books.filter((book) => {
-          const matchesSearch =
-            book.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-            book.author.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-            (book.genre && book.genre.toLowerCase().includes(state.searchQuery.toLowerCase())) ||
-            (book.synopsis && book.synopsis.toLowerCase().includes(state.searchQuery.toLowerCase()));
+          const rawSearch = (state.searchQuery || "").trim();
+          let matchesSearch = true;
+
+          if (rawSearch) {
+            const cleanedSearchIsbn = rawSearch.replace(/[^0-9Xx]/g, "");
+            const isSearchIsbn = (cleanedSearchIsbn.length === 10 || cleanedSearchIsbn.length === 13) && /^[0-9]+[0-9Xx]?$/.test(cleanedSearchIsbn);
+
+            if (isSearchIsbn) {
+              // STRICT ISBN FILTER: Match ONLY books whose own ISBN equals the queried ISBN
+              const bookCleanIsbn = (book.isbn || "").trim().replace(/[^0-9Xx]/g, "");
+              matchesSearch = bookCleanIsbn === cleanedSearchIsbn;
+            } else {
+              const queryLower = rawSearch.toLowerCase();
+              const bookCleanIsbn = (book.isbn || "").trim().replace(/[^0-9Xx]/g, "");
+              matchesSearch =
+                (book.title || "").toLowerCase().includes(queryLower) ||
+                (book.author || "").toLowerCase().includes(queryLower) ||
+                (book.genre && book.genre.toLowerCase().includes(queryLower)) ||
+                (book.synopsis && book.synopsis.toLowerCase().includes(queryLower)) ||
+                (book.publisher && book.publisher.toLowerCase().includes(queryLower)) ||
+                (book.boxSetName && book.boxSetName.toLowerCase().includes(queryLower)) ||
+                (bookCleanIsbn && bookCleanIsbn.includes(queryLower));
+            }
+          }
 
           let matchesStatus = false;
           if (state.selectedStatus === "Todos") {
@@ -2143,8 +2162,9 @@
                       <p class="text-[10px] text-slate-400 font-medium truncate">por ${book.author}</p>
                     </div>
                     
-                    <div class="flex items-center justify-between gap-1.5 mt-1.5">
+                    <div class="flex items-center justify-between gap-1.5 mt-1.5 flex-wrap">
                       <span class="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-md font-mono">${book.boxSetVolume || "Vol. N/A"}</span>
+                      ${book.isbn ? `<span class="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-mono">ISBN: ${book.isbn}</span>` : ""}
                       <span class="text-[9px] px-1.5 py-0.5 rounded-md border flex items-center gap-1 font-semibold ${statusColor}">
                         <i data-lucide="${statusIcon}" class="w-2.5 h-2.5"></i>
                         <span>${statusLabel}</span>
@@ -2239,6 +2259,7 @@
                       <span>por <span class="text-slate-600 font-semibold">${book.author}</span></span>
                       ${book.genre ? `<span>• <span class="text-slate-500 font-semibold">${book.genre}</span></span>` : ""}
                       ${book.pages > 0 ? `<span>• <span class="text-slate-500 font-medium">${book.pages} pág.</span></span>` : ""}
+                      ${book.isbn ? `<span>• <span class="text-slate-500 font-mono font-medium">ISBN: ${book.isbn}</span></span>` : ""}
                       ${book.inBoxSet ? `<span class="inline-flex items-center gap-0.5 text-[10px] ml-1.5 px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50 font-bold" title="${book.boxSetName}${book.boxSetVolume ? ` - ${book.boxSetVolume}` : ''}"><i data-lucide="layers" class="w-2.5 h-2.5"></i> ${book.boxSetVolume ? `${book.boxSetName} (${book.boxSetVolume})` : book.boxSetName}</span>` : ""}
                     </p>
                     ${listRatingHTML}
@@ -2376,6 +2397,7 @@
                       <div class="flex flex-wrap gap-1.5 mt-2">
                         <span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.genre || 'Não classificado'}</span>
                         ${book.pages > 0 ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${book.pages} pág.</span>` : ""}
+                        ${book.isbn ? `<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-medium">ISBN: ${book.isbn}</span>` : ""}
                         ${book.inBoxSet ? `<span class="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold flex items-center gap-1" title="${book.boxSetName}${book.boxSetVolume ? ` - ${book.boxSetVolume}` : ''}"><i data-lucide="layers" class="w-3 h-3"></i> ${book.boxSetVolume ? `${book.boxSetName} (${book.boxSetVolume})` : book.boxSetName}</span>` : ""}
                       </div>
                     </div>
