@@ -303,7 +303,7 @@ Atenção especial para os campos:
   }
 });
 
-// API to prefill book details by ISBN or Title with multi-source catalog lookup & anti-hallucination controls
+// API to prefill book details by ISBN or Title with direct public API fetching (Google Books, CBL/BrasilAPI, OpenLibrary) & anti-hallucination controls
 app.post("/api/book-info", validatePin, async (req, res) => {
   // CRITICAL: Prevent response caching by browsers, CDNs or reverse proxies to ensure zero scope leakage between requests
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
@@ -322,177 +322,187 @@ app.post("/api/book-info", validatePin, async (req, res) => {
     const cleanedQuery = rawInput.replace(/[^0-9Xx]/g, "");
     const isIsbn = (cleanedQuery.length === 10 || cleanedQuery.length === 13) && /^[0-9]+[0-9Xx]?$/.test(cleanedQuery);
 
-    // DIRETRIZ 4: QUEBRA DE LOOP E ANTI-ALUCINAÇÃO
-    // Reinicia o objeto de dados totalmente limpo e isolado no escopo desta requisição, sem usar qualquer estado global ou histórico.
-    const officialData = {
-      isIsbn,
-      isbn: isIsbn ? cleanedQuery : "",
-      nationalTitle: "",      // Título oficial retornado pela Base Nacional (CBL)
-      nationalAuthor: "",     // Autor oficial retornado pela Base Nacional (CBL)
-      title: "",              // Título final consolidado
-      author: "",             // Autor final consolidado
-      publisher: "",          // Editora
-      year: "",               // Ano de publicação
-      pages: 0,               // Número de páginas
-      synopsis: "",           // Sinopse
-      foundInCbl: false,      // Indicador se foi localizado na base nacional
-      foundInApi: false,      // Indicador se foi localizado em qualquer catálogo
-      sources: [] as string[],
-      searchResults: [] as any[]
-    };
-
     if (isIsbn) {
-      console.log(`[ISBN ${cleanedQuery}] Iniciando consulta isolada. 1) PRIORIDADE DA BASE NACIONAL (CBL)...`);
+      console.log(`[ISBN ${cleanedQuery}] Buscando via APIs públicas diretas (CBL/BrasilAPI, Google Books e OpenLibrary)...`);
 
-      // 1. PRIORIDADE DA BASE NACIONAL (CBL via BrasilAPI):
-      // Título e Autor da consulta inicial da base nacional são a Autoridade Máxima e devem ser preservados exatamente.
+      let foundBook = {
+        title: "",
+        author: "",
+        publisher: "",
+        year: "",
+        pages: 0,
+        synopsis: "",
+        isbn: cleanedQuery
+      };
+
+      let foundInAnyApi = false;
+
+      // 1. PRIORIDADE BASE NACIONAL (CBL via BrasilAPI)
       try {
         const bRes = await fetch(`https://brasilapi.com.br/api/isbn/v1/${cleanedQuery}`, {
           headers: { "Cache-Control": "no-cache" }
         });
         if (bRes.ok) {
           const d = await bRes.json();
-          if (d.title) {
-            officialData.nationalTitle = d.title.trim();
-            officialData.title = d.title.trim();
-          }
-          if (d.authors) {
-            const parsedAuthors = Array.isArray(d.authors) ? d.authors.join(", ").trim() : String(d.authors).trim();
-            if (parsedAuthors) {
-              officialData.nationalAuthor = parsedAuthors;
-              officialData.author = parsedAuthors;
+          if (d && (d.title || d.publisher)) {
+            foundInAnyApi = true;
+            if (d.title) foundBook.title = d.title.trim();
+            if (d.authors) {
+              const parsed = Array.isArray(d.authors) ? d.authors.join(", ").trim() : String(d.authors).trim();
+              if (parsed) foundBook.author = parsed;
             }
+            if (d.publisher) foundBook.publisher = String(d.publisher).trim();
+            if (d.year) foundBook.year = String(d.year).trim();
+            if (d.page_count) foundBook.pages = Number(d.page_count) || 0;
+            if (d.synopsis) foundBook.synopsis = String(d.synopsis).trim();
+            console.log(`[CBL/BrasilAPI] Encontrado. Título: "${foundBook.title}" | Autor: "${foundBook.author}"`);
           }
-          if (d.publisher) officialData.publisher = String(d.publisher).trim();
-          if (d.year) officialData.year = String(d.year).trim();
-          if (d.page_count) officialData.pages = Number(d.page_count) || 0;
-          if (d.synopsis) officialData.synopsis = String(d.synopsis).trim();
-
-          officialData.foundInCbl = true;
-          officialData.foundInApi = true;
-          officialData.sources.push("Base Nacional (CBL/BrasilAPI)");
-          console.log(`[CBL] Sucesso. Título Nacional PREVALECE: "${officialData.title}" | Autor Nacional: "${officialData.author}"`);
-        } else {
-          console.log(`[CBL] ISBN ${cleanedQuery} não retornado pela BrasilAPI (status ${bRes.status}).`);
         }
       } catch (err) {
-        console.error("Falha ao consultar Base Nacional (BrasilAPI/CBL):", err);
+        console.error("Erro ao consultar BrasilAPI/CBL:", err);
       }
 
-      // 2. REGRA DE COMPLEMENTAÇÃO & 3. PROIBIÇÃO DE SUBSTITUIÇÃO:
-      // Repositórios globais (OpenLibrary) são consultados ESTRITAMENTE para preencher campos AUSENTES no retorno nacional.
-      // É TERMINANTEMENTE PROIBIDO alterar, traduzir ou substituir o título e o autor definidos pela base nacional.
-      const needsComplement = !officialData.synopsis || !officialData.publisher || !officialData.year || !officialData.pages || !officialData.title || !officialData.author;
+      // 2. GOOGLE BOOKS API (q=isbn:)
+      try {
+        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanedQuery}`, {
+          headers: { "Cache-Control": "no-cache" }
+        });
+        if (gbRes.ok) {
+          const gbData = await gbRes.json();
+          if (gbData.items && gbData.items.length > 0) {
+            const vInfo = gbData.items[0].volumeInfo || {};
+            foundInAnyApi = true;
 
-      if (needsComplement) {
-        console.log(`[ISBN ${cleanedQuery}] Buscando complementação em repositórios globais para campos ausentes...`);
-        try {
-          const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`, {
-            headers: { "Cache-Control": "no-cache" }
-          });
-          if (olRes.ok) {
-            const d = await olRes.json();
-            const item = d[`ISBN:${cleanedQuery}`];
-            if (item) {
-              officialData.foundInApi = true;
-              if (!officialData.sources.includes("OpenLibrary")) officialData.sources.push("OpenLibrary");
-
-              // PROIBIÇÃO DE SUBSTITUIÇÃO: Apenas preenche título e autor se estiverem estritamente AUSENTES na base nacional
-              if (!officialData.title && item.title) {
-                officialData.title = String(item.title).trim();
-              }
-              if (!officialData.author && item.authors) {
-                officialData.author = item.authors.map((a: any) => a.name).join(", ").trim();
-              }
-              // COMPLEMENTAÇÃO DE CAMPOS SECUNDÁRIOS:
-              if (!officialData.publisher && item.publishers) {
-                officialData.publisher = item.publishers.map((p: any) => p.name).join(", ").trim();
-              }
-              if (!officialData.year && item.publish_date) {
-                officialData.year = String(item.publish_date).trim();
-              }
-              if (!officialData.pages && item.number_of_pages) {
-                officialData.pages = Number(item.number_of_pages) || 0;
-              }
-              if (!officialData.synopsis && typeof item.notes === "string" && item.notes.trim()) {
-                officialData.synopsis = item.notes.trim();
-              }
+            if (!foundBook.title && vInfo.title) foundBook.title = vInfo.title.trim();
+            if (!foundBook.author && Array.isArray(vInfo.authors) && vInfo.authors.length > 0) {
+              foundBook.author = vInfo.authors.join(", ").trim();
             }
+            if (!foundBook.publisher && vInfo.publisher) foundBook.publisher = String(vInfo.publisher).trim();
+            if (!foundBook.year && vInfo.publishedDate) foundBook.year = String(vInfo.publishedDate).slice(0, 4);
+            if (!foundBook.pages && vInfo.pageCount) foundBook.pages = Number(vInfo.pageCount) || 0;
+            if (!foundBook.synopsis && vInfo.description) foundBook.synopsis = String(vInfo.description).trim();
+            console.log(`[Google Books API] Processado. Título: "${foundBook.title}" | Autor: "${foundBook.author}"`);
           }
-        } catch (err) {
-          console.error("Falha ao consultar OpenLibrary para complementação:", err);
         }
+      } catch (err) {
+        console.error("Erro ao consultar Google Books API:", err);
       }
 
-      // Complementação Secundária via OpenLibrary Search API (somente se ainda faltar autor ou título)
-      if (!officialData.title || !officialData.author) {
+      // 3. OPENLIBRARY API (Complemento secundário)
+      try {
+        const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`, {
+          headers: { "Cache-Control": "no-cache" }
+        });
+        if (olRes.ok) {
+          const olData = await olRes.json();
+          const item = olData[`ISBN:${cleanedQuery}`];
+          if (item) {
+            foundInAnyApi = true;
+            if (!foundBook.title && item.title) foundBook.title = String(item.title).trim();
+            if (!foundBook.author && Array.isArray(item.authors)) {
+              foundBook.author = item.authors.map((a: any) => a.name).join(", ").trim();
+            }
+            if (!foundBook.publisher && Array.isArray(item.publishers)) {
+              foundBook.publisher = item.publishers.map((p: any) => p.name).join(", ").trim();
+            }
+            if (!foundBook.year && item.publish_date) foundBook.year = String(item.publish_date).trim();
+            if (!foundBook.pages && item.number_of_pages) foundBook.pages = Number(item.number_of_pages) || 0;
+            if (!foundBook.synopsis && typeof item.notes === "string") foundBook.synopsis = item.notes.trim();
+            console.log(`[OpenLibrary Data] Processado. Título: "${foundBook.title}" | Autor: "${foundBook.author}"`);
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao consultar OpenLibrary Data:", err);
+      }
+
+      // 4. OPENLIBRARY SEARCH API (fallback para autor e título)
+      if (!foundBook.author || !foundBook.title) {
         try {
           const olsRes = await fetch(`https://openlibrary.org/search.json?q=${cleanedQuery}&limit=1`);
           if (olsRes.ok) {
             const d = await olsRes.json();
             if (d.docs && d.docs.length > 0) {
               const doc = d.docs[0];
-              officialData.foundInApi = true;
-              if (!officialData.sources.includes("OpenLibrarySearch")) officialData.sources.push("OpenLibrarySearch");
-
-              if (!officialData.title && doc.title) officialData.title = String(doc.title).trim();
-              if (!officialData.author && doc.author_name) officialData.author = doc.author_name.join(", ").trim();
-              if (!officialData.year && doc.first_publish_year) officialData.year = String(doc.first_publish_year);
+              foundInAnyApi = true;
+              if (!foundBook.title && doc.title) foundBook.title = String(doc.title).trim();
+              if (!foundBook.author && Array.isArray(doc.author_name)) {
+                foundBook.author = doc.author_name.join(", ").trim();
+              }
+              if (!foundBook.year && doc.first_publish_year) foundBook.year = String(doc.first_publish_year);
+              console.log(`[OpenLibrary Search] Fallback processado. Título: "${foundBook.title}" | Autor: "${foundBook.author}"`);
             }
           }
         } catch (err) {
-          console.error("Falha ao consultar OpenLibrary Search:", err);
+          console.error("Erro ao consultar OpenLibrary Search:", err);
         }
       }
-    } else {
-      // Busca textual por título/autor
-      try {
-        const olsRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery.trim())}&limit=3`);
-        if (olsRes.ok) {
-          const d = await olsRes.json();
-          if (d.docs && d.docs.length > 0) {
-            officialData.foundInApi = true;
-            officialData.searchResults = d.docs.map((doc: any) => ({
-              title: doc.title,
-              author: doc.author_name ? doc.author_name.join(", ") : "Desconhecido",
-              year: doc.first_publish_year ? String(doc.first_publish_year) : ""
-            }));
+
+      // SE NENHUMA API RETORNOU DADOS OU O LIVRO NÃO TEM TÍTULO: Retornar erro explícito sem inventar nada!
+      if (!foundInAnyApi || !foundBook.title) {
+        console.log(`[ISBN ${cleanedQuery}] Não localizado nas APIs públicas. Retornando 404 'Livro não encontrado'.`);
+        return res.status(404).json({
+          error: "Livro não encontrado no catálogo pelo ISBN fornecido."
+        });
+      }
+
+      if (!foundBook.author) {
+        foundBook.author = "Autor a confirmar";
+      }
+
+      // SE A API RETORNOU O LIVRO: Opcionalmente traduzir/polir a sinopse se estiver em outro idioma
+      let finalSynopsis = foundBook.synopsis;
+
+      if (finalSynopsis && /[a-zA-Z]/.test(finalSynopsis) && process.env.GEMINI_API_KEY) {
+        try {
+          const promptText = `Você é um tradutor e formatador literário.
+Dados REAIS obtidos das APIs oficiais para o ISBN ${cleanedQuery}:
+- Título: ${foundBook.title}
+- Autor: ${foundBook.author}
+- Sinopse original: ${finalSynopsis}
+
+INSTRUÇÕES ESTRITAS:
+1. MANTENHA O TÍTULO "${foundBook.title}" E O AUTOR "${foundBook.author}" EXATAMENTE COMO FORAM PASSADOS.
+2. Se a sinopse estiver em inglês ou outro idioma, traduza-a para o português do Brasil de forma elegante e sem spoilers. Se já estiver em português, apenas corrija a pontuação.
+3. Não adicione nem invente nenhuma informação fictícia.
+
+Retorne obrigatoriamente no formato JSON:
+{
+  "translatedSynopsis": "sinopse formatada em português"
+}`;
+
+          const contents = [{ parts: [{ text: promptText }] }];
+          const aiResponse = await generateContentWithFetch("gemini-3.5-flash", contents, {
+            responseMimeType: "application/json"
+          });
+          const parsed = JSON.parse(aiResponse.text.trim());
+          if (parsed && parsed.translatedSynopsis && parsed.translatedSynopsis.length > 10) {
+            finalSynopsis = parsed.translatedSynopsis;
           }
+        } catch (e) {
+          console.log("Mantendo sinopse original obtida das APIs.");
         }
-      } catch (err) {
-        console.error("Falha ao buscar títulos na OpenLibrary:", err);
-      }
-    }
-
-    if (isIsbn && officialData.foundInApi && (officialData.title || officialData.author)) {
-      console.log(`[ISBN ${cleanedQuery}] Retornando metadados consolidados. Título final: "${officialData.title}", Autor final: "${officialData.author}"`);
-
-      const bookTitle = officialData.title || `Livro ISBN ${cleanedQuery}`;
-      const bookAuthor = officialData.author || "Autor a confirmar";
-      const bookPublisher = officialData.publisher || "";
-      const bookYear = officialData.year ? String(officialData.year) : "";
-
-      let finalSynopsis = officialData.synopsis;
-      if (!finalSynopsis || finalSynopsis.length < 15) {
-        finalSynopsis = `Obra "${bookTitle}"${bookAuthor ? ` de ${bookAuthor}` : ''}, cadastrada no catálogo sob o ISBN ${cleanedQuery}.`;
       }
 
-      const editionInfoParts = [bookPublisher, bookYear].filter(Boolean);
+      if (!finalSynopsis) {
+        finalSynopsis = `Obra "${foundBook.title}"${foundBook.author ? ` de ${foundBook.author}` : ""}, cadastrada no catálogo oficial sob o ISBN ${cleanedQuery}.`;
+      }
+
+      const editionInfoParts = [foundBook.publisher, foundBook.year].filter(Boolean);
       const editionInfo = editionInfoParts.length > 0 ? editionInfoParts.join(", ") : "Edição Registrada";
 
       return res.json({
         books: [
           {
-            title: bookTitle,
-            author: bookAuthor,
+            title: foundBook.title,
+            author: foundBook.author,
             genre: "Literatura",
-            pages: officialData.pages || 0,
+            pages: foundBook.pages || 0,
             synopsis: finalSynopsis,
             status: "Quero Ler",
             isbn: cleanedQuery,
             editionInfo: editionInfo,
-            publisher: bookPublisher,
-            publishYear: bookYear,
+            publisher: foundBook.publisher || "",
+            publishYear: foundBook.year || "",
             edition: "Edição Brasileira",
             inBoxSet: false,
             boxSetName: "",
@@ -500,74 +510,52 @@ app.post("/api/book-info", validatePin, async (req, res) => {
           }
         ]
       });
-    } else if (isIsbn && !officialData.foundInApi) {
-      console.log(`ISBN ${cleanedQuery} não encontrado nos catálogos oficiais. Retornando objeto informativo de não localizado.`);
-      return res.json({
-        books: [
-          {
-            title: `[ISBN ${cleanedQuery} - Não localizado no catálogo]`,
-            author: "Não localizado",
-            genre: "Geral",
-            pages: 0,
-            synopsis: `Este código de ISBN (${cleanedQuery}) não foi localizado no catálogo oficial. Você pode pesquisar pelo Título do livro na barra de busca para encontrar as edições disponíveis.`,
-            status: "Quero Ler",
-            isbn: cleanedQuery,
-            editionInfo: "",
-            publisher: "",
-            publishYear: "",
-            edition: "",
-            inBoxSet: false,
-            boxSetName: "",
-            boxSetVolume: ""
-          }
-        ]
-      });
     } else {
-      const promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão para a "Estante da Lu".
-O usuário inseriu a seguinte consulta para encontrar um livro ou coleção (por Título ou Autor): "${searchQuery.trim()}".
+      // Busca textual por título/autor
+      console.log(`[Busca textual: "${rawInput}"] Consultando Google Books API...`);
+      let textResults: any[] = [];
 
-REGRAS CRÍTICAS DE VERACIDADE (PREVENÇÃO TOTAL DE ALUCINAÇÕES):
-1. Identifique com precisão cirúrgica a obra literária real correspondente à busca do usuário em português brasileiro.
-2. Se a busca for sobre um Box Set ou Coleção famosa (ex: "Box Harry Potter"), forneça os livros da coleção com "inBoxSet": true e o nome do box.
-3. Se for um livro individual normal, forneça de 1 a 3 edições/versões reais correspondentes ao livro pesquisado.
-4. Você está TERMINANTEMENTE PROIBIDO de inventar ou alterar autores/livros reais.
+      try {
+        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(rawInput)}&maxResults=5`, {
+          headers: { "Cache-Control": "no-cache" }
+        });
+        if (gbRes.ok) {
+          const gbData = await gbRes.json();
+          if (gbData.items && gbData.items.length > 0) {
+            textResults = gbData.items.map((item: any) => {
+              const vInfo = item.volumeInfo || {};
+              const isbns = vInfo.industryIdentifiers || [];
+              const isbnObj = isbns.find((i: any) => i.type === "ISBN_13") || isbns.find((i: any) => i.type === "ISBN_10") || isbns[0];
+              const itemIsbn = isbnObj ? isbnObj.identifier.replace(/[^0-9Xx]/g, "") : "";
 
-Retorne obrigatoriamente um objeto JSON com a chave "books":
-{
-  "books": [
-    {
-      "title": "Título oficial e correto do livro em português brasileiro",
-      "author": "Nome do autor principal",
-      "genre": "Gênero literário",
-      "pages": 250,
-      "synopsis": "Uma sinopse cativante e real sem spoilers",
-      "status": "Quero Ler",
-      "isbn": "",
-      "editionInfo": "Rótulo curto da edição (ex: 'Editora Intrínseca')",
-      "publisher": "Nome da editora",
-      "publishYear": "Ano de publicação",
-      "edition": "Edição",
-      "inBoxSet": false,
-      "boxSetName": "",
-      "boxSetVolume": ""
-    }
-  ]
-}`;
-
-      const contents = [{ parts: [{ text: promptText }] }];
-      const response = await generateContentWithFetch("gemini-3.5-flash", contents, {
-        responseMimeType: "application/json"
-      });
-
-      const textOutput = response.text;
-      if (!textOutput) {
-        throw new Error("O assistente não retornou nenhuma edição do livro.");
+              return {
+                title: vInfo.title || "Título Desconhecido",
+                author: Array.isArray(vInfo.authors) ? vInfo.authors.join(", ") : "Autor Desconhecido",
+                genre: Array.isArray(vInfo.categories) ? vInfo.categories[0] : "Literatura",
+                pages: Number(vInfo.pageCount) || 0,
+                synopsis: vInfo.description || `Obra localizada na pesquisa por "${rawInput}".`,
+                status: "Quero Ler",
+                isbn: itemIsbn,
+                editionInfo: vInfo.publisher ? `${vInfo.publisher}${vInfo.publishedDate ? `, ${vInfo.publishedDate.slice(0, 4)}` : ''}` : "Edição Geral",
+                publisher: vInfo.publisher || "",
+                publishYear: vInfo.publishedDate ? vInfo.publishedDate.slice(0, 4) : "",
+                edition: "Edição Geral",
+                inBoxSet: false,
+                boxSetName: "",
+                boxSetVolume: ""
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Erro na busca por título na Google Books API:", err);
       }
 
-      const result = JSON.parse(textOutput.trim());
-      const books = result.books || [];
+      if (textResults.length > 0) {
+        return res.json({ books: textResults });
+      }
 
-      return res.json({ books });
+      return res.status(404).json({ error: "Livro não encontrado." });
     }
   } catch (error: any) {
     console.error("Erro ao buscar detalhes do livro:", error);
