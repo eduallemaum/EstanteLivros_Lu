@@ -315,87 +315,118 @@ app.post("/api/book-info", validatePin, async (req, res) => {
     const cleanedQuery = searchQuery.trim().replace(/[^0-9Xx]/g, "");
     const isIsbn = (cleanedQuery.length === 10 || cleanedQuery.length === 13) && /^[0-9]+[0-9Xx]?$/.test(cleanedQuery);
 
+    // DIRETRIZ 4: QUEBRA DE LOOP E ANTI-ALUCINAÇÃO
+    // Reinicia o objeto de dados totalmente limpo do zero a cada nova requisição, sem usar histórico ou suposições passadas.
     let officialData = {
       isIsbn,
       isbn: isIsbn ? cleanedQuery : "",
-      title: "",
-      author: "",
-      publisher: "",
-      year: "",
-      pages: 0,
-      synopsis: "",
-      foundInApi: false,
+      nationalTitle: "",      // Título oficial retornado pela Base Nacional (CBL)
+      nationalAuthor: "",     // Autor oficial retornado pela Base Nacional (CBL)
+      title: "",              // Título final consolidado
+      author: "",             // Autor final consolidado
+      publisher: "",          // Editora
+      year: "",               // Ano de publicação
+      pages: 0,               // Número de páginas
+      synopsis: "",           // Sinopse
+      foundInCbl: false,      // Indicador se foi localizado na base nacional
+      foundInApi: false,      // Indicador se foi localizado em qualquer catálogo
       sources: [] as string[],
       searchResults: [] as any[]
     };
 
     if (isIsbn) {
-      console.log(`Buscando ISBN ${cleanedQuery} prioritariamente na BrasilAPI...`);
+      console.log(`[ISBN ${cleanedQuery}] Iniciando consulta. 1) PRIORIDADE DA BASE NACIONAL (CBL)...`);
 
-      // 1. Consultar BrasilAPI (Catálogo Nacional Oficial - CBL)
+      // 1. PRIORIDADE DA BASE NACIONAL (CBL via BrasilAPI):
+      // Título e Autor da consulta inicial da base nacional são a Autoridade Máxima e devem ser preservados exatamente.
       try {
         const bRes = await fetch(`https://brasilapi.com.br/api/isbn/v1/${cleanedQuery}`);
         if (bRes.ok) {
           const d = await bRes.json();
-          if (d.title) officialData.title = d.title.trim();
+          if (d.title) {
+            officialData.nationalTitle = d.title.trim();
+            officialData.title = d.title.trim();
+          }
           if (d.authors) {
-            officialData.author = Array.isArray(d.authors) ? d.authors.join(", ").trim() : String(d.authors).trim();
+            const parsedAuthors = Array.isArray(d.authors) ? d.authors.join(", ").trim() : String(d.authors).trim();
+            if (parsedAuthors) {
+              officialData.nationalAuthor = parsedAuthors;
+              officialData.author = parsedAuthors;
+            }
           }
           if (d.publisher) officialData.publisher = String(d.publisher).trim();
           if (d.year) officialData.year = String(d.year).trim();
           if (d.page_count) officialData.pages = Number(d.page_count) || 0;
           if (d.synopsis) officialData.synopsis = String(d.synopsis).trim();
+
+          officialData.foundInCbl = true;
           officialData.foundInApi = true;
-          officialData.sources.push("BrasilAPI");
-          console.log(`Encontrado na BrasilAPI com sucesso: "${officialData.title}" por "${officialData.author}"`);
+          officialData.sources.push("Base Nacional (CBL/BrasilAPI)");
+          console.log(`[CBL] Sucesso. Título Nacional PREVALECE: "${officialData.title}" | Autor Nacional: "${officialData.author}"`);
         } else {
-          console.log(`BrasilAPI retornou status ${bRes.status} para ISBN ${cleanedQuery}`);
+          console.log(`[CBL] ISBN ${cleanedQuery} não retornado pela BrasilAPI (status ${bRes.status}).`);
         }
       } catch (err) {
-        console.error("Falha ao consultar BrasilAPI:", err);
+        console.error("Falha ao consultar Base Nacional (BrasilAPI/CBL):", err);
       }
 
-      // 2. Consultar OpenLibrary para enriquecer dados faltantes (autor, editora, ano, páginas, sinopse)
-      if (!officialData.author || !officialData.publisher || !officialData.synopsis) {
-        console.log(`Buscando dados complementares no OpenLibrary para o ISBN ${cleanedQuery}...`);
+      // 2. REGRA DE COMPLEMENTAÇÃO & 3. PROIBIÇÃO DE SUBSTITUIÇÃO:
+      // Repositórios globais (OpenLibrary) são consultados ESTRITAMENTE para preencher campos AUSENTES no retorno nacional.
+      // É TERMINANTEMENTE PROIBIDO alterar, traduzir ou substituir o título e o autor definidos pela base nacional.
+      const needsComplement = !officialData.synopsis || !officialData.publisher || !officialData.year || !officialData.pages || !officialData.title || !officialData.author;
+
+      if (needsComplement) {
+        console.log(`[ISBN ${cleanedQuery}] Buscando complementação em repositórios globais para campos ausentes...`);
         try {
           const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`);
           if (olRes.ok) {
             const d = await olRes.json();
             const item = d[`ISBN:${cleanedQuery}`];
             if (item) {
-              if (!officialData.title && item.title) officialData.title = String(item.title).trim();
+              officialData.foundInApi = true;
+              if (!officialData.sources.includes("OpenLibrary")) officialData.sources.push("OpenLibrary");
+
+              // PROIBIÇÃO DE SUBSTITUIÇÃO: Apenas preenche título e autor se estiverem estritamente AUSENTES na base nacional
+              if (!officialData.title && item.title) {
+                officialData.title = String(item.title).trim();
+              }
               if (!officialData.author && item.authors) {
                 officialData.author = item.authors.map((a: any) => a.name).join(", ").trim();
               }
+              // COMPLEMENTAÇÃO DE CAMPOS SECUNDÁRIOS:
               if (!officialData.publisher && item.publishers) {
                 officialData.publisher = item.publishers.map((p: any) => p.name).join(", ").trim();
               }
-              if (!officialData.year && item.publish_date) officialData.year = String(item.publish_date).trim();
-              if (!officialData.pages && item.number_of_pages) officialData.pages = Number(item.number_of_pages) || 0;
-              if (!officialData.synopsis && typeof item.notes === "string") officialData.synopsis = item.notes.trim();
-              officialData.foundInApi = true;
-              if (!officialData.sources.includes("OpenLibrary")) officialData.sources.push("OpenLibrary");
+              if (!officialData.year && item.publish_date) {
+                officialData.year = String(item.publish_date).trim();
+              }
+              if (!officialData.pages && item.number_of_pages) {
+                officialData.pages = Number(item.number_of_pages) || 0;
+              }
+              if (!officialData.synopsis && typeof item.notes === "string" && item.notes.trim()) {
+                officialData.synopsis = item.notes.trim();
+              }
             }
           }
         } catch (err) {
-          console.error("Falha ao consultar OpenLibrary:", err);
+          console.error("Falha ao consultar OpenLibrary para complementação:", err);
         }
       }
 
-      // 3. Fallback final para OpenLibrary Search se ainda faltar autor ou título
-      if (!officialData.author || !officialData.title) {
+      // Complementação Secundária via OpenLibrary Search API (somente se ainda faltar autor ou título)
+      if (!officialData.title || !officialData.author) {
         try {
           const olsRes = await fetch(`https://openlibrary.org/search.json?q=${cleanedQuery}&limit=1`);
           if (olsRes.ok) {
             const d = await olsRes.json();
             if (d.docs && d.docs.length > 0) {
               const doc = d.docs[0];
+              officialData.foundInApi = true;
+              if (!officialData.sources.includes("OpenLibrarySearch")) officialData.sources.push("OpenLibrarySearch");
+
               if (!officialData.title && doc.title) officialData.title = String(doc.title).trim();
               if (!officialData.author && doc.author_name) officialData.author = doc.author_name.join(", ").trim();
               if (!officialData.year && doc.first_publish_year) officialData.year = String(doc.first_publish_year);
-              officialData.foundInApi = true;
-              if (!officialData.sources.includes("OpenLibrarySearch")) officialData.sources.push("OpenLibrarySearch");
             }
           }
         } catch (err) {
@@ -403,7 +434,7 @@ app.post("/api/book-info", validatePin, async (req, res) => {
         }
       }
     } else {
-      // Busca por título/texto
+      // Busca textual por título/autor
       try {
         const olsRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery.trim())}&limit=3`);
         if (olsRes.ok) {
@@ -422,10 +453,8 @@ app.post("/api/book-info", validatePin, async (req, res) => {
       }
     }
 
-    let promptText = "";
-
     if (isIsbn && officialData.foundInApi && (officialData.title || officialData.author)) {
-      console.log(`ISBN ${cleanedQuery} encontrado nos catálogos oficiais (${officialData.sources.join(", ")}). Retornando dados reais diretamente sem passar por IA.`);
+      console.log(`[ISBN ${cleanedQuery}] Retornando metadados consolidados. Título final: "${officialData.title}", Autor final: "${officialData.author}"`);
 
       const bookTitle = officialData.title || `Livro ISBN ${cleanedQuery}`;
       const bookAuthor = officialData.author || "Autor a confirmar";
@@ -434,7 +463,7 @@ app.post("/api/book-info", validatePin, async (req, res) => {
 
       let finalSynopsis = officialData.synopsis;
       if (!finalSynopsis || finalSynopsis.length < 15) {
-        finalSynopsis = `Obra "${bookTitle}"${bookAuthor ? ` de ${bookAuthor}` : ''}, cadastrada no catálogo oficial de livros sob o ISBN ${cleanedQuery}.`;
+        finalSynopsis = `Obra "${bookTitle}"${bookAuthor ? ` de ${bookAuthor}` : ''}, cadastrada no catálogo sob o ISBN ${cleanedQuery}.`;
       }
 
       const editionInfoParts = [bookPublisher, bookYear].filter(Boolean);
@@ -461,7 +490,7 @@ app.post("/api/book-info", validatePin, async (req, res) => {
         ]
       });
     } else if (isIsbn && !officialData.foundInApi) {
-      console.log(`ISBN ${cleanedQuery} não encontrado nos catálogos (BrasilAPI/OpenLibrary). Retornando resposta de não localizado direto sem chamar IA para evitar alucinações.`);
+      console.log(`ISBN ${cleanedQuery} não encontrado nos catálogos oficiais. Retornando objeto informativo de não localizado.`);
       return res.json({
         books: [
           {
@@ -469,7 +498,7 @@ app.post("/api/book-info", validatePin, async (req, res) => {
             author: "Não localizado",
             genre: "Geral",
             pages: 0,
-            synopsis: `Este código de ISBN (${cleanedQuery}) não foi encontrado nos catálogos oficiais (BrasilAPI/OpenLibrary). Por favor, tente pesquisar pelo Título do livro (ex: 'O Castelo de Vidro') no campo de busca para encontrá-lo.`,
+            synopsis: `Este código de ISBN (${cleanedQuery}) não foi localizado no catálogo oficial. Você pode pesquisar pelo Título do livro na barra de busca para encontrar as edições disponíveis.`,
             status: "Quero Ler",
             isbn: cleanedQuery,
             editionInfo: "",
@@ -483,14 +512,14 @@ app.post("/api/book-info", validatePin, async (req, res) => {
         ]
       });
     } else {
-      promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão para a "Estante da Lu".
+      const promptText = `Você é um bibliotecário e assistente literário profissional de alta precisão para a "Estante da Lu".
 O usuário inseriu a seguinte consulta para encontrar um livro ou coleção (por Título ou Autor): "${searchQuery.trim()}".
 
 REGRAS CRÍTICAS DE VERACIDADE (PREVENÇÃO TOTAL DE ALUCINAÇÕES):
-1. Identifique com precisão cirúrgica a obra literária real correspondente à busca do usuário em português brasileiro (ex: se buscou "O Castelo de Vidro", identifique a autobiografia/memória real de Jeannette Walls).
-2. Se a busca for sobre um Box Set ou Coleção famosa (ex: "Box Harry Potter", "Trilogia O Senhor dos Anéis"), forneça os livros da coleção com "inBoxSet": true e o nome do box.
+1. Identifique com precisão cirúrgica a obra literária real correspondente à busca do usuário em português brasileiro.
+2. Se a busca for sobre um Box Set ou Coleção famosa (ex: "Box Harry Potter"), forneça os livros da coleção com "inBoxSet": true e o nome do box.
 3. Se for um livro individual normal, forneça de 1 a 3 edições/versões reais correspondentes ao livro pesquisado.
-4. Você está TERMINANTEMENTE PROIBIDO de inventar, misturar ou criar livros ou autores fictícios que não existem no mundo real.
+4. Você está TERMINANTEMENTE PROIBIDO de inventar ou alterar autores/livros reais.
 
 Retorne obrigatoriamente um objeto JSON com a chave "books":
 {
@@ -513,33 +542,26 @@ Retorne obrigatoriamente um objeto JSON com a chave "books":
     }
   ]
 }`;
-    }
 
-    const contents = [
-      {
-        parts: [
-          { text: promptText }
-        ]
+      const contents = [{ parts: [{ text: promptText }] }];
+      const response = await generateContentWithFetch("gemini-3.5-flash", contents, {
+        responseMimeType: "application/json"
+      });
+
+      const textOutput = response.text;
+      if (!textOutput) {
+        throw new Error("O assistente não retornou nenhuma edição do livro.");
       }
-    ];
 
-    const response = await generateContentWithFetch("gemini-3.5-flash", contents, {
-      responseMimeType: "application/json"
-    });
+      const result = JSON.parse(textOutput.trim());
+      const books = result.books || [];
 
-    const textOutput = response.text;
-    if (!textOutput) {
-      throw new Error("O Gemini não retornou nenhuma edição do livro.");
+      return res.json({ books });
     }
-
-    const result = JSON.parse(textOutput.trim());
-    const books = result.books || [];
-
-    return res.json({ books });
   } catch (error: any) {
-    console.error("Erro ao buscar detalhes do livro via Gemini:", error);
+    console.error("Erro ao buscar detalhes do livro:", error);
     return res.status(500).json({
-      error: error.message || "Ocorreu um erro ao obter os detalhes do livro com Inteligência Artificial."
+      error: error.message || "Ocorreu um erro ao obter os detalhes do livro."
     });
   }
 });
