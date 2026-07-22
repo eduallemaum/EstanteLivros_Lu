@@ -3506,8 +3506,13 @@
           return;
         }
 
-        // Clear error
+        // Clear error & reset previous candidates state and UI list
         if (errorBanner) errorBanner.classList.add("hidden");
+        state.aiCandidates = [];
+        const candidatesContainer = document.getElementById("ai-candidates-container");
+        const candidatesList = document.getElementById("ai-candidates-list");
+        if (candidatesList) candidatesList.innerHTML = "";
+        if (candidatesContainer) candidatesContainer.classList.add("hidden");
 
         const btnSubmit = document.getElementById("btn-ai-prefill-submit");
         const btnText = document.getElementById("ai-btn-text-content");

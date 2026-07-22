@@ -305,19 +305,26 @@ Atenção especial para os campos:
 
 // API to prefill book details by ISBN or Title with multi-source catalog lookup & anti-hallucination controls
 app.post("/api/book-info", validatePin, async (req, res) => {
+  // CRITICAL: Prevent response caching by browsers, CDNs or reverse proxies to ensure zero scope leakage between requests
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+
   try {
     const { query: searchQuery } = req.body;
 
-    if (!searchQuery || !searchQuery.trim()) {
+    if (!searchQuery || typeof searchQuery !== "string" || !searchQuery.trim()) {
       return res.status(400).json({ error: "Nenhum ISBN ou título do livro fornecido." });
     }
 
-    const cleanedQuery = searchQuery.trim().replace(/[^0-9Xx]/g, "");
+    const rawInput = searchQuery.trim();
+    const cleanedQuery = rawInput.replace(/[^0-9Xx]/g, "");
     const isIsbn = (cleanedQuery.length === 10 || cleanedQuery.length === 13) && /^[0-9]+[0-9Xx]?$/.test(cleanedQuery);
 
     // DIRETRIZ 4: QUEBRA DE LOOP E ANTI-ALUCINAÇÃO
-    // Reinicia o objeto de dados totalmente limpo do zero a cada nova requisição, sem usar histórico ou suposições passadas.
-    let officialData = {
+    // Reinicia o objeto de dados totalmente limpo e isolado no escopo desta requisição, sem usar qualquer estado global ou histórico.
+    const officialData = {
       isIsbn,
       isbn: isIsbn ? cleanedQuery : "",
       nationalTitle: "",      // Título oficial retornado pela Base Nacional (CBL)
@@ -335,12 +342,14 @@ app.post("/api/book-info", validatePin, async (req, res) => {
     };
 
     if (isIsbn) {
-      console.log(`[ISBN ${cleanedQuery}] Iniciando consulta. 1) PRIORIDADE DA BASE NACIONAL (CBL)...`);
+      console.log(`[ISBN ${cleanedQuery}] Iniciando consulta isolada. 1) PRIORIDADE DA BASE NACIONAL (CBL)...`);
 
       // 1. PRIORIDADE DA BASE NACIONAL (CBL via BrasilAPI):
       // Título e Autor da consulta inicial da base nacional são a Autoridade Máxima e devem ser preservados exatamente.
       try {
-        const bRes = await fetch(`https://brasilapi.com.br/api/isbn/v1/${cleanedQuery}`);
+        const bRes = await fetch(`https://brasilapi.com.br/api/isbn/v1/${cleanedQuery}`, {
+          headers: { "Cache-Control": "no-cache" }
+        });
         if (bRes.ok) {
           const d = await bRes.json();
           if (d.title) {
@@ -378,7 +387,9 @@ app.post("/api/book-info", validatePin, async (req, res) => {
       if (needsComplement) {
         console.log(`[ISBN ${cleanedQuery}] Buscando complementação em repositórios globais para campos ausentes...`);
         try {
-          const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`);
+          const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanedQuery}&format=json&jscmd=data`, {
+            headers: { "Cache-Control": "no-cache" }
+          });
           if (olRes.ok) {
             const d = await olRes.json();
             const item = d[`ISBN:${cleanedQuery}`];
