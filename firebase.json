@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-estantedalu-d9be5acc-3d19-41a0-ab85-993a300c4a8e",
+      "rules": "firestore.rules"
+    }
+  ]
+}

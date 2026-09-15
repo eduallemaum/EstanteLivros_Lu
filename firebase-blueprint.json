@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "Book": {
+      "title": "Book",
+      "description": "Livro da biblioteca familiar",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 1000 },
+        "author": { "type": "string", "maxLength": 1000 },
+        "coverImage": { "type": "string", "maxLength": 1000000 },
+        "genre": { "type": "string", "maxLength": 500 },
+        "pages": { "type": "number" },
+        "synopsis": { "type": "string", "maxLength": 100000 },
+        "status": { "type": "string", "maxLength": 100 },
+        "isbn": { "type": "string", "maxLength": 100 },
+        "publisher": { "type": "string", "maxLength": 500 },
+        "publishYear": { "type": "string", "maxLength": 100 },
+        "edition": { "type": "string", "maxLength": 500 },
+        "inBoxSet": { "type": "boolean" },
+        "boxSetName": { "type": "string", "maxLength": 500 },
+        "boxSetVolume": { "type": "string", "maxLength": 500 },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title"]
+    },
+    "WishlistItem": {
+      "title": "WishlistItem",
+      "description": "Item da lista de desejos",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 1000 },
+        "author": { "type": "string", "maxLength": 1000 },
+        "coverImage": { "type": "string", "maxLength": 1000000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title"]
+    },
+    "FamilyUser": {
+      "title": "FamilyUser",
+      "description": "Usuário familiar com PIN de acesso",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "maxLength": 100 },
+        "pin": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "maxLength": 50 },
+        "avatar": { "type": "string", "maxLength": 50 },
+        "active": { "type": "boolean" }
+      },
+      "required": ["username", "pin", "role"]
+    },
+    "AccessLog": {
+      "title": "AccessLog",
+      "description": "Registro de auditoria de acessos",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "maxLength": 100 },
+        "timestamp": { "type": "string" },
+        "success": { "type": "boolean" },
+        "ip": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["username"]
+    }
+  },
+  "firestore": {
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Coleção de livros da estante"
+    },
+    "/wishlist/{wishlistId}": {
+      "schema": "WishlistItem",
+      "description": "Coleção da lista de desejos"
+    },
+    "/family_users/{document}": {
+      "schema": "FamilyUser",
+      "description": "Coleção de usuários da família"
+    },
+    "/access_logs/{document}": {
+      "schema": "AccessLog",
+      "description": "Coleção de registros de acesso"
+    }
+  }
+}

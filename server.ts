@@ -3,7 +3,20 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { getAllUsers, verifyPin, getAccessLogs, upsertUser, removeUser } from "./api/db.js";
+import { 
+  getAllUsers, 
+  verifyPin, 
+  getAccessLogs, 
+  upsertUser, 
+  removeUser,
+  getBooks,
+  addBook,
+  updateBook,
+  deleteBook,
+  getWishlist,
+  addWishlist,
+  deleteWishlist
+} from "./api/db.js";
 
 dotenv.config();
 
@@ -132,6 +145,108 @@ app.post("/api/verify-pin", async (req, res) => {
     return res.status(401).json({ error: result.error || "Código PIN incorreto." });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || "Erro interno no servidor de autenticação." });
+  }
+});
+
+// ==================== BOOKS ENDPOINTS ====================
+
+// GET /api/books - Get all books from Firestore
+app.get("/api/books", async (req, res) => {
+  try {
+    const books = await getBooks();
+    res.json({ success: true, books });
+  } catch (error: any) {
+    console.error("Error in GET /api/books:", error);
+    res.status(500).json({ error: error.message || "Erro ao carregar livros do banco de dados." });
+  }
+});
+
+// POST /api/books - Add a new book to Firestore
+app.post("/api/books", async (req, res) => {
+  try {
+    const bookData = req.body;
+    if (!bookData || !bookData.title) {
+      return res.status(400).json({ error: "O título do livro é obrigatório." });
+    }
+    const createdBook = await addBook(bookData);
+    res.status(201).json({ success: true, book: createdBook });
+  } catch (error: any) {
+    console.error("Error in POST /api/books:", error);
+    res.status(500).json({ error: error.message || "Erro ao salvar livro no banco de dados." });
+  }
+});
+
+// PUT /api/books/:id or /api/books?id= - Update an existing book in Firestore
+app.put(["/api/books/:id", "/api/books"], async (req, res) => {
+  try {
+    const id = req.params.id || (req.query.id as string) || req.body?.id;
+    const bookData = req.body;
+    if (!id) {
+      return res.status(400).json({ error: "ID do livro não fornecido." });
+    }
+    const updated = await updateBook(id, bookData);
+    res.json({ success: true, book: updated });
+  } catch (error: any) {
+    console.error("Error in PUT /api/books:", error);
+    res.status(500).json({ error: error.message || "Erro ao atualizar livro no banco de dados." });
+  }
+});
+
+// DELETE /api/books/:id or /api/books?id= - Delete a book from Firestore
+app.delete(["/api/books/:id", "/api/books"], async (req, res) => {
+  try {
+    const id = req.params.id || (req.query.id as string) || req.body?.id;
+    if (!id) {
+      return res.status(400).json({ error: "ID do livro não fornecido." });
+    }
+    await deleteBook(id);
+    res.json({ success: true, id });
+  } catch (error: any) {
+    console.error("Error in DELETE /api/books:", error);
+    res.status(500).json({ error: error.message || "Erro ao excluir livro no banco de dados." });
+  }
+});
+
+// ==================== WISHLIST ENDPOINTS ====================
+
+// GET /api/wishlist - Get all wishlist items
+app.get("/api/wishlist", async (req, res) => {
+  try {
+    const wishlist = await getWishlist();
+    res.json({ success: true, wishlist });
+  } catch (error: any) {
+    console.error("Error in GET /api/wishlist:", error);
+    res.status(500).json({ error: error.message || "Erro ao carregar lista de desejos." });
+  }
+});
+
+// POST /api/wishlist - Add an item to wishlist
+app.post("/api/wishlist", async (req, res) => {
+  try {
+    const itemData = req.body;
+    if (!itemData || !itemData.title) {
+      return res.status(400).json({ error: "Título do livro desejado é obrigatório." });
+    }
+    const createdItem = await addWishlist(itemData);
+    res.status(201).json({ success: true, item: createdItem });
+  } catch (error: any) {
+    console.error("Error in POST /api/wishlist:", error);
+    res.status(500).json({ error: error.message || "Erro ao salvar na lista de desejos." });
+  }
+});
+
+// DELETE /api/wishlist/:id or /api/wishlist?id= - Remove item from wishlist
+app.delete(["/api/wishlist/:id", "/api/wishlist"], async (req, res) => {
+  try {
+    const id = req.params.id || (req.query.id as string) || req.body?.id;
+    if (!id) {
+      return res.status(400).json({ error: "ID do item não fornecido." });
+    }
+    await deleteWishlist(id);
+    res.json({ success: true, id });
+  } catch (error: any) {
+    console.error("Error in DELETE /api/wishlist:", error);
+    res.status(500).json({ error: error.message || "Erro ao remover item da lista de desejos." });
   }
 });
 

@@ -1761,8 +1761,55 @@
         lucide.createIcons();
       });
 
-      // 5. Setup Live Firestore Subscription
+      // 5. Setup Live Firestore & Server Synchronization
+      async function syncWithServer() {
+        try {
+          // Fetch Books from Server API (Direct Firestore Connection via Server)
+          const booksRes = await fetch("/api/books");
+          if (booksRes.ok) {
+            const data = await booksRes.json();
+            if (data.success && Array.isArray(data.books)) {
+              if (data.books.length > 0) {
+                state.books = data.books;
+                localStorage.setItem("estante_da_lu_backup", JSON.stringify(data.books));
+              } else if (state.books.length === 0) {
+                const backup = localStorage.getItem("estante_da_lu_backup");
+                state.books = backup ? JSON.parse(backup) : DEFAULT_BOOKS;
+              }
+              state.loading = false;
+              renderApp();
+            }
+          }
+
+          // Fetch Wishlist from Server API
+          const wishRes = await fetch("/api/wishlist");
+          if (wishRes.ok) {
+            const data = await wishRes.json();
+            if (data.success && Array.isArray(data.wishlist)) {
+              state.wishlist = data.wishlist;
+              state.wishlistLoading = false;
+              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(data.wishlist));
+              renderApp();
+            }
+          }
+        } catch (e) {
+          console.warn("Server sync notice:", e);
+          if (state.books.length === 0) {
+            loadLocalBackup();
+          }
+        }
+      }
+
       function initFirestoreSync() {
+        // 1. Immediately sync via Server API
+        syncWithServer();
+
+        // 2. Setup periodic background synchronization every 12 seconds
+        if (!window._syncInterval) {
+          window._syncInterval = setInterval(syncWithServer, 12000);
+        }
+
+        // 3. Keep Firestore client listener as auxiliary live channel if available
         try {
           const q = query(collection(db, "books"), orderBy("createdAt", "desc"));
           onSnapshot(
@@ -1773,19 +1820,18 @@
                 booksData.push({ id: docSnap.id, ...docSnap.data() });
               });
 
-              if (booksData.length === 0) {
-                state.books = DEFAULT_BOOKS;
-                localStorage.setItem("estante_da_lu_backup", JSON.stringify(DEFAULT_BOOKS));
-              } else {
+              if (booksData.length > 0) {
                 state.books = booksData;
                 localStorage.setItem("estante_da_lu_backup", JSON.stringify(booksData));
+                state.loading = false;
+                renderApp();
               }
-              state.loading = false;
-              renderApp();
             },
             (error) => {
-              console.warn("Firestore subscription failed, falling back to local backup:", error);
-              loadLocalBackup();
+              // Only fallback to local if server sync hasn't loaded books yet
+              if (state.books.length === 0) {
+                loadLocalBackup();
+              }
             }
           );
 
@@ -1798,22 +1844,19 @@
               snapshot.forEach((docSnap) => {
                 wishlistData.push({ id: docSnap.id, ...docSnap.data() });
               });
-              state.wishlist = wishlistData;
-              state.wishlistLoading = false;
-              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(wishlistData));
-              renderApp();
+              if (wishlistData.length > 0) {
+                state.wishlist = wishlistData;
+                state.wishlistLoading = false;
+                localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(wishlistData));
+                renderApp();
+              }
             },
             (error) => {
-              console.warn("Firestore wishlist subscription failed, loading backup:", error);
-              const backupWish = localStorage.getItem("estante_da_lu_wishlist_backup");
-              state.wishlist = backupWish ? JSON.parse(backupWish) : [];
-              state.wishlistLoading = false;
-              renderApp();
+              // Auxiliary listener error, server sync will handle it
             }
           );
         } catch (err) {
-          console.warn("Firestore initialization error, using local backup:", err);
-          loadLocalBackup();
+          console.warn("Firestore live listener init:", err);
         }
       }
 
@@ -3317,16 +3360,15 @@
         
         try {
           if (!bookId.startsWith("local_")) {
-            const bookRef = doc(db, "books", bookId);
-            await updateDoc(bookRef, {
-              rating: rating,
-              updatedAt: serverTimestamp()
+            await fetch(`/api/books/${bookId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ rating: rating })
             });
-          } else {
-            localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
           }
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
         } catch (err) {
-          console.warn("Firestore rating save failed, saved locally:", err);
+          console.warn("Server rating save notice, cached locally:", err);
           localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
         }
         
@@ -3762,18 +3804,27 @@
             };
             
             try {
-              await addDoc(collection(db, "books"), {
-                ...cleanData,
-                createdAt: serverTimestamp()
+              const res = await fetch("/api/books", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(cleanData)
               });
+              if (res.ok) {
+                const resData = await res.json();
+                if (resData.book) {
+                  state.books = [resData.book, ...state.books.filter(b => b.id !== resData.book.id)];
+                }
+              } else {
+                throw new Error("Batch API save failed");
+              }
             } catch (err) {
-              console.warn("Firestore save failed during batch, performing local backup save:", err);
+              console.warn("API save notice during batch, saving locally:", err);
               const newLocal = { ...cleanData, id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 5)}` };
               state.books = [newLocal, ...state.books];
-              localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
             }
           }
           
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
           window.closeBookModal();
           alert(`${candidates.length} volumes da coleção foram cadastrados e vinculados com sucesso!`);
           renderApp();
@@ -3951,21 +4002,37 @@
           }
 
           if (state.editingBook && state.editingBook.id && !state.editingBook.id.startsWith("local_")) {
-            // Firestore update
-            const bookRef = doc(db, "books", state.editingBook.id);
-            await updateDoc(bookRef, {
-              ...cleanData,
-              updatedAt: serverTimestamp()
+            // Server API / Firestore update
+            const res = await fetch(`/api/books/${state.editingBook.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(cleanData)
             });
+            if (res.ok) {
+              const resData = await res.json();
+              const updatedBook = resData.book || { id: state.editingBook.id, ...cleanData };
+              state.books = state.books.map((b) => b.id === state.editingBook.id ? { ...b, ...updatedBook } : b);
+            } else {
+              throw new Error("Update API failed");
+            }
           } else {
-            // Firestore create
-            await addDoc(collection(db, "books"), {
-              ...cleanData,
-              createdAt: serverTimestamp()
+            // Server API / Firestore create
+            const res = await fetch("/api/books", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(cleanData)
             });
+            if (res.ok) {
+              const resData = await res.json();
+              const createdBook = resData.book;
+              state.books = [createdBook, ...state.books.filter(b => b.id !== createdBook.id)];
+            } else {
+              throw new Error("Create API failed");
+            }
           }
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
         } catch (err) {
-          console.warn("Firestore save failed, performing local modifications:", err);
+          console.warn("Server save notice, performing local modifications:", err);
           let updatedList = [...state.books];
           if (state.editingBook && state.editingBook.id) {
             updatedList = updatedList.map((b) => b.id === state.editingBook.id ? { ...b, ...cleanData } : b);
@@ -3975,7 +4042,6 @@
           }
           state.books = updatedList;
           localStorage.setItem("estante_da_lu_backup", JSON.stringify(updatedList));
-          renderApp();
         }
 
         // Reset duplicate status after successful save
@@ -4001,14 +4067,13 @@
         // Se estivermos promovendo um item da lista de desejos, remova-o agora que foi cadastrado com sucesso!
         if (state.promotingWishlistId) {
           try {
-            if (state.promotingWishlistId.startsWith("local_")) {
-              state.wishlist = state.wishlist.filter(item => item.id !== state.promotingWishlistId);
-              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
-            } else {
-              await deleteDoc(doc(db, "wishlist", state.promotingWishlistId));
-            }
+            await fetch(`/api/wishlist/${state.promotingWishlistId}`, { method: "DELETE" });
+            state.wishlist = state.wishlist.filter(item => item.id !== state.promotingWishlistId);
+            localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
           } catch (e) {
             console.warn("Não foi possível excluir o item promovido da Lista de Desejos:", e);
+            state.wishlist = state.wishlist.filter(item => item.id !== state.promotingWishlistId);
+            localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
           }
           state.promotingWishlistId = null;
         }
@@ -4025,12 +4090,14 @@
         if (!confirm("Deseja mesmo remover este livro da sua estante?")) return;
         
         try {
-          if (bookId.startsWith("local_")) {
-            throw new Error("Local book deletion");
+          if (!bookId.startsWith("local_")) {
+            await fetch(`/api/books/${bookId}`, { method: "DELETE" });
           }
-          await deleteDoc(doc(db, "books", bookId));
+          state.books = state.books.filter((b) => b.id !== bookId);
+          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          renderApp();
         } catch (err) {
-          console.warn("Firestore delete failed, updating locally:", err);
+          console.warn("API delete notice, updating locally:", err);
           state.books = state.books.filter((b) => b.id !== bookId);
           localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
           renderApp();
@@ -4058,15 +4125,26 @@
         };
         
         try {
-          await addDoc(collection(db, "wishlist"), {
-            ...cleanData,
-            createdAt: serverTimestamp()
+          const res = await fetch("/api/wishlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cleanData)
           });
+          if (res.ok) {
+            const resData = await res.json();
+            if (resData.item) {
+              state.wishlist = [resData.item, ...state.wishlist.filter(i => i.id !== resData.item.id)];
+            }
+          } else {
+            throw new Error("API wishlist save failed");
+          }
           
           if (titleInput) titleInput.value = "";
           if (authorInput) authorInput.value = "";
+          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          renderApp();
         } catch (err) {
-          console.warn("Firestore save failed for wishlist, saving locally:", err);
+          console.warn("Server save notice for wishlist, saving locally:", err);
           const newLocal = { ...cleanData, id: `local_${Date.now()}` };
           state.wishlist = [newLocal, ...state.wishlist];
           localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
@@ -4081,13 +4159,12 @@
         if (!confirm("Deseja remover este livro da sua Lista de Desejos?")) return;
         
         try {
-          if (id.startsWith("local_")) {
-            state.wishlist = state.wishlist.filter(item => item.id !== id);
-            localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
-            renderApp();
-          } else {
-            await deleteDoc(doc(db, "wishlist", id));
+          if (!id.startsWith("local_")) {
+            await fetch(`/api/wishlist/${id}`, { method: "DELETE" });
           }
+          state.wishlist = state.wishlist.filter(item => item.id !== id);
+          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          renderApp();
         } catch (err) {
           console.error("Failed to delete wishlist item:", err);
           state.wishlist = state.wishlist.filter(item => item.id !== id);
@@ -4127,10 +4204,18 @@
         };
         
         try {
-          await addDoc(collection(db, "wishlist"), {
-            ...cleanData,
-            createdAt: serverTimestamp()
+          const res = await fetch("/api/wishlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cleanData)
           });
+          if (res.ok) {
+            const resData = await res.json();
+            if (resData.item) {
+              state.wishlist = [resData.item, ...state.wishlist.filter(i => i.id !== resData.item.id)];
+              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+            }
+          }
           
           if (btn) {
             btn.className = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg cursor-default";
@@ -4138,7 +4223,7 @@
             if (window.lucide) window.lucide.createIcons();
           }
         } catch (err) {
-          console.warn("Firestore save failed for quick wishlist add, saving locally:", err);
+          console.warn("Server save notice for quick wishlist add, saving locally:", err);
           const newLocal = { ...cleanData, id: `local_${Date.now()}` };
           state.wishlist = [newLocal, ...state.wishlist];
           localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
@@ -5652,6 +5737,9 @@
           loadLoginProfiles();
         }
       }
+
+      // Initialize data synchronization immediately
+      initFirestoreSync();
 
       // Check session on load
       checkAppSession();

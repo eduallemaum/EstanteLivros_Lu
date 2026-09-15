@@ -1,21 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permit client-side read/write to family books for synchronization
-    match /books/{document} {
+
+    // Books collection
+    match /books/{bookId} {
       allow read, write: if true;
     }
-    
-    // Explicitly lock down sensitive credentials and security audit logs from client-side SDK access
+
+    // Wishlist collection
+    match /wishlist/{wishlistId} {
+      allow read, write: if true;
+    }
+
+    // Family users collection for PIN authentication
     match /family_users/{document} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
-    
+
+    // Access logs collection
     match /access_logs/{document} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
-    
-    // Default fallback rule is secure denial
+
+    // Default fallback rule
     match /{document=**} {
       allow read, write: if false;
     }
