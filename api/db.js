@@ -244,6 +244,8 @@ export async function removeUser(username) {
 }
 
 // ---------------- BOOKS CRUD ----------------
+let booksCache = null;
+let wishlistCache = null;
 
 // Fetch all books from Firestore
 export async function getBooks() {
@@ -275,9 +277,14 @@ export async function getBooks() {
       return timeB - timeA;
     });
 
+    booksCache = books;
     return books;
   } catch (error) {
     console.error("Error fetching books from Firestore:", error);
+    if (booksCache && booksCache.length > 0) {
+      console.log(`[Cache Fallback] Returning ${booksCache.length} cached books due to Firestore notice.`);
+      return booksCache;
+    }
     throw error;
   }
 }
@@ -375,9 +382,14 @@ export async function getWishlist() {
       return timeB - timeA;
     });
 
+    wishlistCache = wishlist;
     return wishlist;
   } catch (error) {
     console.error("Error fetching wishlist from Firestore:", error);
+    if (wishlistCache && wishlistCache.length > 0) {
+      console.log(`[Cache Fallback] Returning ${wishlistCache.length} cached wishlist items.`);
+      return wishlistCache;
+    }
     throw error;
   }
 }

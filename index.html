@@ -1762,6 +1762,30 @@
       });
 
       // 5. Setup Live Firestore & Server Synchronization
+      function safeSetLocalStorageBackup(key, data) {
+        try {
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+          // If browser localStorage quota is exceeded (e.g. books with base64 covers > 5MB),
+          // strip heavy base64 strings so metadata fits safely without crashing the UI.
+          try {
+            if (Array.isArray(data)) {
+              const lightweight = data.map((item) => {
+                if (item && item.coverImage && item.coverImage.length > 500) {
+                  const copy = { ...item };
+                  delete copy.coverImage;
+                  return copy;
+                }
+                return item;
+              });
+              localStorage.setItem(key, JSON.stringify(lightweight));
+            }
+          } catch (innerErr) {
+            console.warn("Storage quota full, continuing in memory:", innerErr);
+          }
+        }
+      }
+
       async function syncWithServer() {
         try {
           // Fetch Books from Server API (Direct Firestore Connection via Server)
@@ -1771,13 +1795,13 @@
             if (data.success && Array.isArray(data.books)) {
               if (data.books.length > 0) {
                 state.books = data.books;
-                localStorage.setItem("estante_da_lu_backup", JSON.stringify(data.books));
               } else if (state.books.length === 0) {
                 const backup = localStorage.getItem("estante_da_lu_backup");
                 state.books = backup ? JSON.parse(backup) : DEFAULT_BOOKS;
               }
               state.loading = false;
               renderApp();
+              safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
             }
           }
 
@@ -1788,8 +1812,8 @@
             if (data.success && Array.isArray(data.wishlist)) {
               state.wishlist = data.wishlist;
               state.wishlistLoading = false;
-              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(data.wishlist));
               renderApp();
+              safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", data.wishlist);
             }
           }
         } catch (e) {
@@ -1801,15 +1825,10 @@
       }
 
       function initFirestoreSync() {
-        // 1. Immediately sync via Server API
+        // 1. Initial sync via Server API
         syncWithServer();
 
-        // 2. Setup periodic background synchronization every 12 seconds
-        if (!window._syncInterval) {
-          window._syncInterval = setInterval(syncWithServer, 12000);
-        }
-
-        // 3. Keep Firestore client listener as auxiliary live channel if available
+        // 2. Keep Firestore client listener as real-time live channel (without polling overhead)
         try {
           const q = query(collection(db, "books"), orderBy("createdAt", "desc"));
           onSnapshot(
@@ -1822,9 +1841,9 @@
 
               if (booksData.length > 0) {
                 state.books = booksData;
-                localStorage.setItem("estante_da_lu_backup", JSON.stringify(booksData));
                 state.loading = false;
                 renderApp();
+                safeSetLocalStorageBackup("estante_da_lu_backup", booksData);
               }
             },
             (error) => {
@@ -1847,8 +1866,8 @@
               if (wishlistData.length > 0) {
                 state.wishlist = wishlistData;
                 state.wishlistLoading = false;
-                localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(wishlistData));
                 renderApp();
+                safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", wishlistData);
               }
             },
             (error) => {
@@ -3366,10 +3385,10 @@
               body: JSON.stringify({ rating: rating })
             });
           }
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
         } catch (err) {
           console.warn("Server rating save notice, cached locally:", err);
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
         }
         
         // Render main list/grid views to reflect changes
@@ -3824,7 +3843,7 @@
             }
           }
           
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
           window.closeBookModal();
           alert(`${candidates.length} volumes da coleção foram cadastrados e vinculados com sucesso!`);
           renderApp();
@@ -4030,7 +4049,7 @@
               throw new Error("Create API failed");
             }
           }
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
+          safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
         } catch (err) {
           console.warn("Server save notice, performing local modifications:", err);
           let updatedList = [...state.books];
@@ -4041,7 +4060,7 @@
             updatedList = [newLocal, ...updatedList];
           }
           state.books = updatedList;
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(updatedList));
+          safeSetLocalStorageBackup("estante_da_lu_backup", updatedList);
         }
 
         // Reset duplicate status after successful save
@@ -4069,11 +4088,11 @@
           try {
             await fetch(`/api/wishlist/${state.promotingWishlistId}`, { method: "DELETE" });
             state.wishlist = state.wishlist.filter(item => item.id !== state.promotingWishlistId);
-            localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+            safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           } catch (e) {
             console.warn("Não foi possível excluir o item promovido da Lista de Desejos:", e);
             state.wishlist = state.wishlist.filter(item => item.id !== state.promotingWishlistId);
-            localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+            safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           }
           state.promotingWishlistId = null;
         }
@@ -4094,13 +4113,13 @@
             await fetch(`/api/books/${bookId}`, { method: "DELETE" });
           }
           state.books = state.books.filter((b) => b.id !== bookId);
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
           renderApp();
+          safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
         } catch (err) {
           console.warn("API delete notice, updating locally:", err);
           state.books = state.books.filter((b) => b.id !== bookId);
-          localStorage.setItem("estante_da_lu_backup", JSON.stringify(state.books));
           renderApp();
+          safeSetLocalStorageBackup("estante_da_lu_backup", state.books);
         }
       };
 
@@ -4141,13 +4160,13 @@
           
           if (titleInput) titleInput.value = "";
           if (authorInput) authorInput.value = "";
-          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           renderApp();
         } catch (err) {
           console.warn("Server save notice for wishlist, saving locally:", err);
           const newLocal = { ...cleanData, id: `local_${Date.now()}` };
           state.wishlist = [newLocal, ...state.wishlist];
-          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           
           if (titleInput) titleInput.value = "";
           if (authorInput) authorInput.value = "";
@@ -4163,12 +4182,12 @@
             await fetch(`/api/wishlist/${id}`, { method: "DELETE" });
           }
           state.wishlist = state.wishlist.filter(item => item.id !== id);
-          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           renderApp();
         } catch (err) {
           console.error("Failed to delete wishlist item:", err);
           state.wishlist = state.wishlist.filter(item => item.id !== id);
-          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           renderApp();
         }
       };
@@ -4213,7 +4232,7 @@
             const resData = await res.json();
             if (resData.item) {
               state.wishlist = [resData.item, ...state.wishlist.filter(i => i.id !== resData.item.id)];
-              localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+              safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
             }
           }
           
@@ -4226,7 +4245,7 @@
           console.warn("Server save notice for quick wishlist add, saving locally:", err);
           const newLocal = { ...cleanData, id: `local_${Date.now()}` };
           state.wishlist = [newLocal, ...state.wishlist];
-          localStorage.setItem("estante_da_lu_wishlist_backup", JSON.stringify(state.wishlist));
+          safeSetLocalStorageBackup("estante_da_lu_wishlist_backup", state.wishlist);
           
           if (btn) {
             btn.className = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg cursor-default";
