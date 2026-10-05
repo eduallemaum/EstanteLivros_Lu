@@ -99,24 +99,32 @@
         <!-- Section 1: Profile Selection -->
         <div id="login-profile-sec" class="w-full block">
           <p class="text-xs font-bold text-slate-500 uppercase tracking-wider text-center mb-6">Quem está lendo hoje?</p>
-          <div id="login-profiles-container" class="grid grid-cols-3 gap-3 mb-4">
-            <!-- Profile 1: Lu -->
-            <button onclick="selectUserProfile('Lu')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
+          <div id="login-profiles-container" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+            <!-- Profile 1: Luciana -->
+            <button onclick="selectUserProfile('Luciana')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
               <div class="w-14 h-14 rounded-2xl bg-[#EDE7F6] text-[#7986cb] flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
                 🐱
               </div>
-              <span class="text-xs font-extrabold text-slate-700">Lu</span>
-              <span class="text-[9px] text-slate-400 font-semibold mt-0.5">Leitora</span>
+              <span class="text-xs font-extrabold text-slate-700">Luciana</span>
+              <span class="text-[9px] text-slate-400 font-semibold mt-0.5">Moderadora</span>
             </button>
-            <!-- Profile 2: Edu -->
-            <button onclick="selectUserProfile('Edu')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
+            <!-- Profile 2: Eduardo -->
+            <button onclick="selectUserProfile('Eduardo')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
               <div class="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
                 🧔
               </div>
-              <span class="text-xs font-extrabold text-slate-700">Edu</span>
+              <span class="text-xs font-extrabold text-slate-700">Eduardo</span>
               <span class="text-[9px] text-slate-400 font-semibold mt-0.5">Moderador</span>
             </button>
-            <!-- Profile 3: Convidado -->
+            <!-- Profile 3: Augusto -->
+            <button onclick="selectUserProfile('Augusto')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
+              <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
+                🧒
+              </div>
+              <span class="text-xs font-extrabold text-slate-700">Augusto</span>
+              <span class="text-[9px] text-slate-400 font-semibold mt-0.5">Moderador</span>
+            </button>
+            <!-- Profile 4: Convidado -->
             <button onclick="selectUserProfile('Convidado')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
               <div class="w-14 h-14 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
                 📖
@@ -2608,8 +2616,9 @@
           }
 
           // Adjust feminine/masculine rank labels based on current logged user
-          const currentUser = localStorage.getItem("estante_da_lu_user") || "Lu";
-          if (currentUser !== "Lu") {
+          const currentUser = localStorage.getItem("estante_da_lu_user") || "Luciana";
+          const isFeminineUser = (currentUser === "Lu" || currentUser === "Luciana");
+          if (!isFeminineUser) {
             if (rankTitle === "Semeadora de Histórias") rankTitle = "Semeador de Histórias";
             if (rankTitle === "Guardiã da Biblioteca") rankTitle = "Guardião da Biblioteca";
             if (rankTitle === "Filósofa dos Livros") rankTitle = "Filósofo dos Livros";
@@ -2756,7 +2765,7 @@
 
           const badgesHTML = badgeDefinitions.map(badge => {
             const active = badge.check(statsPayload);
-            const title = currentUser === "Lu" ? badge.titleFeminine : badge.titleMasculine;
+            const title = isFeminineUser ? badge.titleFeminine : badge.titleMasculine;
             
             let emojiToShow = badge.emoji;
             let titleToShow = title;
@@ -5368,19 +5377,23 @@
       function updateSidebarProfile(username) {
         const avatars = {
           "Lu": "🐱",
+          "Luciana": "🐱",
           "Edu": "🧔",
+          "Eduardo": "🧔",
+          "Augusto": "🧒",
           "Convidado": "📖"
         };
         const avatar = localStorage.getItem("estante_da_lu_avatar") || avatars[username] || "📖";
         const role = localStorage.getItem("estante_da_lu_role") || "user";
         
         let roleLabel = "Leitor";
+        const isFeminine = (username === "Lu" || username === "Luciana");
         if (role === "admin") {
-          roleLabel = (username === "Lu") ? "Moderadora" : "Moderador";
+          roleLabel = isFeminine ? "Moderadora" : "Moderador";
         } else if (role === "visitor" || role === "guest") {
           roleLabel = "Visita";
         } else {
-          roleLabel = (username === "Lu") ? "Leitora" : "Leitor";
+          roleLabel = isFeminine ? "Leitora" : "Leitor";
         }
 
         const avatarEl = document.getElementById("sidebar-user-avatar");
@@ -5483,12 +5496,13 @@
         }
 
         container.innerHTML = users.map((user) => {
-          const isEdu = user.username === "Edu";
+          const isPrimaryAdmin = user.username === "Edu" || user.username === "Eduardo" || user.username === "Luciana" || user.username === "Lu";
           const isAdmin = user.role === "admin";
           const isVisitor = user.role === "visitor" || user.role === "guest";
+          const isFeminine = (user.username === "Lu" || user.username === "Luciana");
           
-          let roleLabel = "Leitor";
-          if (isAdmin) roleLabel = "Moderador";
+          let roleLabel = isFeminine ? "Leitora" : "Leitor";
+          if (isAdmin) roleLabel = isFeminine ? "Moderadora" : "Moderador";
           if (isVisitor) roleLabel = "Visita";
 
           return `
@@ -5513,7 +5527,7 @@
                   <select 
                     id="admin-user-role-${user.username}" 
                     class="text-[11px] font-bold bg-white border border-slate-200 rounded-lg py-1 px-1 focus:outline-none focus:ring-1 focus:ring-[#7986cb] cursor-pointer text-slate-700"
-                    ${isEdu ? 'disabled' : ''}
+                    ${isPrimaryAdmin ? 'disabled' : ''}
                   >
                     <option value="user" ${user.role === 'user' ? 'selected' : ''}>Leitor</option>
                     <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Moderador</option>
@@ -5705,7 +5719,7 @@
           if (response.ok) {
             const data = await response.json();
             if (data && data.users && data.users.length > 0) {
-              const userOrder = { "Lu": 1, "Edu": 2, "Augusto": 3, "Convidado": 4 };
+              const userOrder = { "Luciana": 1, "Lu": 1, "Eduardo": 2, "Edu": 2, "Augusto": 3, "Convidado": 4 };
               const sortedUsers = [...data.users].sort((a, b) => {
                 const oA = userOrder[a.username] || 999;
                 const oB = userOrder[b.username] || 999;
@@ -5713,22 +5727,24 @@
                 return a.username.localeCompare(b.username);
               });
 
+              container.className = "grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4";
               container.innerHTML = sortedUsers.map(user => {
                 const isAdmin = user.role === "admin";
                 const isVisitor = user.role === "visitor" || user.role === "guest";
+                const isFeminine = (user.username === "Lu" || user.username === "Luciana");
 
-                let roleLabel = "Leitor";
-                if (isAdmin) roleLabel = "Moderador";
+                let roleLabel = isFeminine ? "Leitora" : "Leitor";
+                if (isAdmin) roleLabel = isFeminine ? "Moderadora" : "Moderador";
                 if (isVisitor) roleLabel = "Visita";
 
                 let bgClass = "bg-[#EDE7F6] text-[#7986cb]";
-                if (isAdmin) bgClass = "bg-orange-50 text-orange-500";
+                if (isAdmin) bgClass = isFeminine ? "bg-[#EDE7F6] text-[#7986cb]" : "bg-orange-50 text-orange-500";
                 if (isVisitor) bgClass = "bg-teal-50 text-teal-600";
 
                 return `
                   <button onclick="selectUserProfile('${user.username}')" class="group flex flex-col items-center p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all active:scale-95 text-center cursor-pointer">
                     <div class="w-14 h-14 rounded-2xl ${bgClass} flex items-center justify-center text-2xl font-bold shadow-sm group-hover:scale-105 transition-all mb-2">
-                      ${user.avatar || "📖"}
+                      ${user.avatar || (isFeminine ? "🐱" : "📖")}
                     </div>
                     <span class="text-xs font-extrabold text-slate-700 truncate w-full max-w-[80px]">${user.username}</span>
                     <span class="text-[9px] text-slate-400 font-semibold mt-0.5">${roleLabel}</span>

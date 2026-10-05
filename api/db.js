@@ -36,50 +36,68 @@ export const db = initializeFirestore(
   firebaseConfig.firestoreDatabaseId || "(default)"
 );
 
-// Helper to seed default users if the collection is empty
+// Standard user definitions and persistent default PIN rules
+export const DEFAULT_USER_RULES = {
+  "Eduardo": { username: "Eduardo", pin: "370450", role: "admin", avatar: "🧔", active: true },
+  "Edu": { username: "Edu", pin: "370450", role: "admin", avatar: "🧔", active: true },
+  "Luciana": { username: "Luciana", pin: "050412", role: "admin", avatar: "🐱", active: true },
+  "Lu": { username: "Lu", pin: "050412", role: "admin", avatar: "🐱", active: true },
+  "Augusto": { username: "Augusto", pin: "050412", role: "admin", avatar: "🧒", active: true },
+  "Convidado": { username: "Convidado", pin: "000000", role: "user", avatar: "📖", active: true }
+};
+
+// Permanent master rule PINs for quick lookup
+export const MASTER_RULE_PINS = {
+  "eduardo": "370450",
+  "edu": "370450",
+  "luciana": "050412",
+  "lu": "050412",
+  "augusto": "050412",
+  "convidado": "000000"
+};
+
+// Helper to seed and maintain default users and standard PIN rules in Firestore
 export async function seedUsersIfEmpty() {
   try {
-    const usersCol = collection(db, "family_users");
-    const snapshot = await getDocs(usersCol);
-    if (snapshot.empty) {
-      console.log("Seeding default family users to Firestore...");
-      const defaultUsers = {
-        "Lu": { username: "Lu", pin: "141203", role: "admin", avatar: "🐱", active: true },
-        "Edu": { username: "Edu", pin: "123456", role: "admin", avatar: "🧔", active: true },
-        "Convidado": { username: "Convidado", pin: "000000", role: "user", avatar: "📖", active: true }
-      };
+    console.log("[Users Rule] Synchronizing default family users and master PIN rules in Firestore...");
 
-      for (const [username, userData] of Object.entries(defaultUsers)) {
-        await setDoc(doc(db, "family_users", username), userData);
-      }
-      console.log("Default family users successfully seeded.");
-    } else {
-      // If collection is NOT empty, let's ensure "Lu" is upgraded to admin if she exists
-      const luDocRef = doc(db, "family_users", "Lu");
-      const luSnap = await getDoc(luDocRef);
-      if (luSnap.exists()) {
-        const luData = luSnap.data();
-        if (luData.role !== "admin") {
-          console.log("Upgrading Lu to admin role in Firestore...");
-          await setDoc(luDocRef, { ...luData, role: "admin" });
-          console.log("Lu successfully upgraded to admin.");
+    for (const [key, defaultUser] of Object.entries(DEFAULT_USER_RULES)) {
+      const userDocRef = doc(db, "family_users", key);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        console.log(`[Users Rule] Creating missing user ${key} with rule PIN...`);
+        await setDoc(userDocRef, defaultUser);
+      } else {
+        const existingData = userSnap.data();
+        const updates = {};
+        
+        // Ensure core family members are admins
+        if (defaultUser.role === "admin" && existingData.role !== "admin") {
+          updates.role = "admin";
         }
-      }
+        // Ensure active
+        if (!existingData.active) {
+          updates.active = true;
+        }
+        // If password is the obsolete temporary password (123456 or 141203) or missing, reset to rule PIN
+        if (!existingData.pin || existingData.pin === "123456" || existingData.pin === "141203") {
+          updates.pin = defaultUser.pin;
+          console.log(`[Users Rule] Updating obsolete/missing PIN for ${key} to standard rule PIN (${defaultUser.pin}).`);
+        }
+        // Ensure avatar
+        if (!existingData.avatar && defaultUser.avatar) {
+          updates.avatar = defaultUser.avatar;
+        }
 
-      // Also ensure "Edu" is upgraded to admin if he exists
-      const eduDocRef = doc(db, "family_users", "Edu");
-      const eduSnap = await getDoc(eduDocRef);
-      if (eduSnap.exists()) {
-        const eduData = eduSnap.data();
-        if (eduData.role !== "admin") {
-          console.log("Upgrading Edu to admin role in Firestore...");
-          await setDoc(eduDocRef, { ...eduData, role: "admin" });
-          console.log("Edu successfully upgraded to admin.");
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(userDocRef, updates);
         }
       }
     }
+    console.log("[Users Rule] Default family users and standard PIN rules verified.");
   } catch (error) {
-    console.error("Error seeding default users:", error);
+    console.error("[Users Rule] Error synchronizing default users:", error);
   }
 }
 
@@ -91,14 +109,40 @@ export async function getAllUsers(includePins = false) {
   try {
     const usersCol = collection(db, "family_users");
     const snapshot = await getDocs(usersCol);
-    const users = [];
+    const rawUsers = [];
+    
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      if (!includePins) {
-        delete data.pin;
-      }
-      users.push(data);
+      rawUsers.push({ id: docSnap.id, ...data, username: data.username || docSnap.id });
     });
+
+    // Check if canonical profiles exist
+    const hasEduardo = rawUsers.some(u => u.username.toLowerCase() === "eduardo");
+    const hasLuciana = rawUsers.some(u => u.username.toLowerCase() === "luciana");
+
+    const users = [];
+    rawUsers.forEach((u) => {
+      const lower = (u.username || "").toLowerCase();
+      // In the user listing, avoid displaying redundant short aliases if canonical name exists
+      if (hasEduardo && lower === "edu") return;
+      if (hasLuciana && lower === "lu") return;
+
+      const userObj = { ...u };
+      if (!includePins) {
+        delete userObj.pin;
+      }
+      users.push(userObj);
+    });
+
+    // Order: Luciana, Eduardo, Augusto, Convidado, others
+    const sortOrder = { "luciana": 1, "lu": 1, "eduardo": 2, "edu": 2, "augusto": 3, "convidado": 4 };
+    users.sort((a, b) => {
+      const oA = sortOrder[a.username.toLowerCase()] || 99;
+      const oB = sortOrder[b.username.toLowerCase()] || 99;
+      if (oA !== oB) return oA - oB;
+      return a.username.localeCompare(b.username);
+    });
+
     return users;
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -125,37 +169,65 @@ export async function logAccessAttempt(username, success, details, req) {
   }
 }
 
+// Helper to find a user doc, checking aliases
+async function findUserDoc(username) {
+  const clean = username.trim();
+  const lower = clean.toLowerCase();
+
+  // Try direct lookup first
+  let docRef = doc(db, "family_users", clean);
+  let docSnap = await getDoc(docRef);
+  if (docSnap.exists()) return { docRef, docSnap, canonicalKey: clean };
+
+  // Try known alias fallbacks
+  let aliasKey = null;
+  if (lower === "eduardo" || lower === "edu") {
+    aliasKey = clean === "Edu" ? "Eduardo" : "Edu";
+  } else if (lower === "luciana" || lower === "lu") {
+    aliasKey = clean === "Lu" ? "Luciana" : "Lu";
+  }
+
+  if (aliasKey) {
+    docRef = doc(db, "family_users", aliasKey);
+    docSnap = await getDoc(docRef);
+    if (docSnap.exists()) return { docRef, docSnap, canonicalKey: aliasKey };
+  }
+
+  return { docRef: null, docSnap: null, canonicalKey: clean };
+}
+
 // Verify a user PIN
 export async function verifyPin(username, pin, req) {
   if (!username || !pin) return { success: false, error: "Nome de usuário e PIN são necessários." };
   
   const cleanUser = username.trim();
   const cleanPin = pin.trim();
+  const lowerUser = cleanUser.toLowerCase();
 
   try {
-    const userDocRef = doc(db, "family_users", cleanUser);
-    const userDoc = await getDoc(userDocRef);
+    const { docSnap } = await findUserDoc(cleanUser);
 
-    if (!userDoc.exists()) {
+    if (!docSnap || !docSnap.exists()) {
       await logAccessAttempt(cleanUser, false, "Usuário não encontrado", req);
       return { success: false, error: "Perfil de usuário não encontrado." };
     }
 
-    const userData = userDoc.data();
+    const userData = docSnap.data();
     if (!userData.active) {
       await logAccessAttempt(cleanUser, false, "Perfil desativado", req);
       return { success: false, error: "Este perfil está desativado." };
     }
 
-    const isLu = cleanUser.toLowerCase() === "lu";
-    const pinMatches = userData.pin === cleanPin || (isLu && (cleanPin === "141203" || cleanPin === "050412"));
+    // Check against stored PIN in DB OR standard master rule PIN (guarantees the rule is always honored)
+    const masterRulePin = MASTER_RULE_PINS[lowerUser];
+    const pinMatches = (userData.pin === cleanPin) || (masterRulePin && cleanPin === masterRulePin);
 
     if (pinMatches) {
       await logAccessAttempt(cleanUser, true, "Login efetuado com sucesso", req);
       return { 
         success: true, 
         user: { 
-          username: cleanUser, 
+          username: userData.username || cleanUser, 
           role: userData.role || "user",
           avatar: userData.avatar || "📖"
         } 
@@ -202,25 +274,39 @@ export async function getAccessLogs() {
 // Update or create user
 export async function upsertUser(adminUser, username, pin, role, avatar, active = true) {
   try {
-    const userDocRef = doc(db, "family_users", username.trim());
+    const cleanUser = username.trim();
+    const lower = cleanUser.toLowerCase();
+    const defaultRulePin = MASTER_RULE_PINS[lower] || "000000";
+
+    const userDocRef = doc(db, "family_users", cleanUser);
     const existing = await getDoc(userDocRef);
     
     const userData = {
-      username: username.trim(),
-      role: role || "user",
-      avatar: avatar || "📖",
+      username: cleanUser,
+      role: role || (lower === "eduardo" || lower === "edu" || lower === "luciana" || lower === "lu" || lower === "augusto" ? "admin" : "user"),
+      avatar: avatar || (lower.includes("lu") ? "🐱" : lower.includes("edu") ? "🧔" : lower === "augusto" ? "🧒" : "📖"),
       active: active === undefined ? true : active,
-      pin: "000000" // default fallback
+      pin: defaultRulePin
     };
 
     const cleanPin = pin ? pin.trim() : "";
     if (cleanPin !== "") {
       userData.pin = cleanPin;
-    } else if (existing.exists()) {
-      userData.pin = existing.data().pin || "000000";
+    } else if (existing.exists() && existing.data().pin) {
+      userData.pin = existing.data().pin;
     }
 
     await setDoc(userDocRef, userData);
+
+    // Keep aliases synced if updating Eduardo or Luciana
+    if (lower === "eduardo" || lower === "edu") {
+      const aliasName = lower === "eduardo" ? "Edu" : "Eduardo";
+      await setDoc(doc(db, "family_users", aliasName), { ...userData, username: aliasName });
+    } else if (lower === "luciana" || lower === "lu") {
+      const aliasName = lower === "luciana" ? "Lu" : "Luciana";
+      await setDoc(doc(db, "family_users", aliasName), { ...userData, username: aliasName });
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Error in upsertUser:", error);
@@ -232,8 +318,12 @@ export async function upsertUser(adminUser, username, pin, role, avatar, active 
 export async function removeUser(username) {
   try {
     const cleanUser = username.trim();
-    if (cleanUser === "Edu") {
-      return { success: false, error: "Não é possível excluir o moderador administrador principal (Edu)." };
+    const lower = cleanUser.toLowerCase();
+    if (lower === "edu" || lower === "eduardo") {
+      return { success: false, error: "Não é possível excluir o moderador administrador Eduardo." };
+    }
+    if (lower === "lu" || lower === "luciana") {
+      return { success: false, error: "Não é possível excluir a proprietária e moderadora Luciana." };
     }
     await deleteDoc(doc(db, "family_users", cleanUser));
     return { success: true };

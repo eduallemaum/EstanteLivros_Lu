@@ -22,9 +22,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Verify if there is an active Admin user with this PIN in Firestore
+    // Verify if there is an active Admin user with this PIN in Firestore or matching the master rule PIN
     const users = await getAllUsers(true);
-    const adminUser = users.find(u => u.role === "admin" && u.pin === userPinHeader.trim() && u.active);
+    const cleanHeaderPin = userPinHeader.trim();
+    const adminUser = users.find(u => {
+      if (!u.active || u.role !== "admin") return false;
+      const lower = (u.username || "").toLowerCase();
+      const rulePin = (lower === "edu" || lower === "eduardo") ? "370450" 
+                    : (lower === "lu" || lower === "luciana" || lower === "augusto") ? "050412" 
+                    : null;
+      return (u.pin === cleanHeaderPin) || (rulePin && cleanHeaderPin === rulePin);
+    });
     
     if (!adminUser) {
       return res.status(403).json({ error: "Acesso administrativo negado. Código PIN de administrador incorreto ou inativo." });
